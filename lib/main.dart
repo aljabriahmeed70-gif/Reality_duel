@@ -1,7 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabasePublishableKey =
+      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+
+  if (supabaseUrl.isEmpty || supabasePublishableKey.isEmpty) {
+    runApp(const ConfigurationErrorApp());
+    return;
+  }
+
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabasePublishableKey,
+  );
+
   runApp(const RealityDuelApp());
+}
+
+class ConfigurationErrorApp extends StatelessWidget {
+  const ConfigurationErrorApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Reality Duel',
+      home: Scaffold(
+        backgroundColor: const Color(0xFF080808),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'تعذر إعداد الاتصال بالخادم.\n'
+              'يرجى التأكد من إعدادات Supabase قبل بناء التطبيق.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class RealityDuelApp extends StatelessWidget {
@@ -391,9 +437,9 @@ class _TalentDetailsPageState extends State<TalentDetailsPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'هذه صفحة موهبة تجريبية في Reality Duel. '
-            'يمكن لاحقًا إضافة الفيديوهات الحقيقية، الإنجازات، '
-            'التحديات، المتابعين والفرص المهنية.',
+            'هذه صفحة موهبة في Reality Duel. '
+            'يمكن إضافة الفيديوهات والإنجازات والتحديات '
+            'والمتابعين والفرص المهنية.',
             style: TextStyle(
               color: Colors.grey.shade400,
               height: 1.6,
@@ -733,7 +779,7 @@ class ProfilePage extends StatelessWidget {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text(
-                    'إنشاء الحساب والملف الشخصي سيتم ربطه بقاعدة البيانات لاحقًا.',
+                    'إنشاء الملف الشخصي سيتم ربطه بقاعدة البيانات.',
                   ),
                 ),
               );
@@ -744,9 +790,10 @@ class ProfilePage extends StatelessWidget {
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تسجيل الدخول سيتم تفعيله في المرحلة التالية.'),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LoginPage(),
                 ),
               );
             },
@@ -759,41 +806,13 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-class NotificationsPage extends StatelessWidget {
-  const NotificationsPage({super.key});
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الإشعارات'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: const [
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.emoji_events),
-            ),
-            title: Text('تحدٍ جديد'),
-            subtitle: Text('هناك تحديات جديدة بانتظارك.'),
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.favorite),
-            ),
-            title: Text('تفاعل جديد'),
-            subtitle: Text('موهبتك حصلت على إعجاب جديد.'),
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.work),
-            ),
-            title: Text('فرصة جديدة'),
-            subtitle: Text('هناك فرصة قد تناسب مهاراتك.'),
-          ),
-        ],
-      ),
-    );
-  }
+  State<LoginPage> createState() => _LoginPageState();
 }
+
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController
