@@ -1,6 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() => runApp(const RealityDuelApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://sdbfruxgoefdwyzhkjay.supabase.co/rest/v1/',
+    anonKey: 'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2',
+  );
+
+  runApp(const RealityDuelApp());
+}
 
 class RealityDuelApp extends StatelessWidget {
   const RealityDuelApp({super.key});
