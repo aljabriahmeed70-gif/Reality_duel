@@ -9,14 +9,14 @@ Future<void> main() async {
     defaultValue: 'https://sdbfruxgoefdwyzhkjay.supabase.co',
   );
 
-  const supabasePublishableKey = String.fromEnvironment(
+  const supabaseKey = String.fromEnvironment(
     'SUPABASE_PUBLISHABLE_KEY',
     defaultValue: 'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2',
   );
 
   await Supabase.initialize(
     url: supabaseUrl,
-    anonKey: supabasePublishableKey,
+    anonKey: supabaseKey,
   );
 
   runApp(const RealityDuelApp());
@@ -30,12 +30,12 @@ class RealityDuelApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Reality Duel - The World Is Your Arena',
+      title: 'Reality Duel',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF6C4DFF),
         brightness: Brightness.dark,
+        colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
       home: const AppShell(),
@@ -55,7 +55,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int index = 0;
+  int currentIndex = 0;
 
   final List<Widget> pages = const [
     HomePage(),
@@ -69,13 +69,13 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: pages[index],
+        child: pages[currentIndex],
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) {
+        selectedIndex: currentIndex,
+        onDestinationSelected: (index) {
           setState(() {
-            index = value;
+            currentIndex = index;
           });
         },
         destinations: const [
@@ -142,12 +142,47 @@ class HomePage extends StatelessWidget {
         Text(
           'أظهر موهبتك. أثبتها. دع العالم يكتشفك.',
           style: TextStyle(
-            color: Colors.white.withOpacity(.7),
+            color: Colors.white.withOpacity(0.7),
             fontSize: 16,
           ),
         ),
         const SizedBox(height: 24),
-        _heroCard(context),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.public, size: 42),
+                const SizedBox(height: 14),
+                const Text(
+                  'Your talent can open doors.',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Join free challenges, submit proof, build your Talent Profile and get discovered by companies.',
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CreateDuelPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create a Duel — Free'),
+                ),
+              ],
+            ),
+          ),
+        ),
         const SizedBox(height: 28),
         const SectionTitle('Trending Duels'),
         const DuelCard(
@@ -178,45 +213,6 @@ class HomePage extends StatelessWidget {
           score: 92,
         ),
       ],
-    );
-  }
-
-  Widget _heroCard(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.public, size: 42),
-            const SizedBox(height: 14),
-            const Text(
-              'Your talent can open doors.',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Join free challenges, submit proof, build your Talent Profile and get discovered by companies.',
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const CreateDuelPage(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Create a Duel — Free'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -263,7 +259,7 @@ class DuelsPage extends StatelessWidget {
 }
 
 // ============================================================
-// DISCOVER TALENT
+// DISCOVER
 // ============================================================
 
 class DiscoverPage extends StatelessWidget {
@@ -283,7 +279,7 @@ class DiscoverPage extends StatelessWidget {
             hintText: 'Search talent, skill or country',
             prefixIcon: const Icon(Icons.search),
             filled: true,
-            fillColor: Colors.white.withOpacity(.06),
+            fillColor: Colors.white.withOpacity(0.06),
           ),
         ),
         const SizedBox(height: 20),
@@ -415,13 +411,13 @@ class TalentProfilePage extends StatelessWidget {
           runSpacing: 8,
           children: [
             Chip(
-              label: Text('Add skill'),
-            ),
-            Chip(
               label: Text('Sports'),
             ),
             Chip(
               label: Text('Creativity'),
+            ),
+            Chip(
+              label: Text('Add skill'),
             ),
           ],
         ),
@@ -455,7 +451,7 @@ class CreateDuelPage extends StatefulWidget {
 }
 
 class _CreateDuelPageState extends State<CreateDuelPage> {
-  String type = 'Person vs Person';
+  String duelType = 'Person vs Person';
 
   final titleController = TextEditingController();
   final descriptionController = TextEditingController();
@@ -500,7 +496,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            initialValue: type,
+            value: duelType,
             decoration: const InputDecoration(
               labelText: 'Duel type',
             ),
@@ -511,20 +507,20 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               'Country vs Country',
               'Company vs Everyone',
               'Global Open',
-            ]
-                .map(
-                  (e) => DropdownMenuItem<String>(
-                    value: e,
-                    child: Text(e),
-                  ),
-                )
-                .toList(),
-            onChanged: (v) {
-              if (v != null) {
-                setState(() {
-                  type = v;
-                });
-              }
+            ].map(
+              (item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              },
+            ).toList(),
+            onChanged: (value) {
+              if (value == null) return;
+
+              setState(() {
+                duelType = value;
+              });
             },
           ),
           const SizedBox(height: 12),
@@ -542,7 +538,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               leading: Icon(Icons.video_camera_back),
               title: Text('Proof required'),
               subtitle: Text(
-                'Participants can submit video and photos. Verification is part of the result.',
+                'Participants can submit video and photos.',
               ),
             ),
           ),
@@ -671,7 +667,7 @@ class DuelDetailPage extends StatelessWidget {
               leading: Icon(Icons.verified),
               title: Text('Proof'),
               subtitle: Text(
-                'Video + photos can be submitted for verification.',
+                'Video and photos can be submitted for verification.',
               ),
             ),
           ),
@@ -747,7 +743,7 @@ class ProofPage extends StatelessWidget {
               leading: Icon(Icons.security),
               title: Text('Verification'),
               subtitle: Text(
-                'Future backend will run automated checks and human review for disputed or suspicious submissions.',
+                'Future backend will run automated checks and human review for suspicious submissions.',
               ),
             ),
           ),
@@ -856,7 +852,7 @@ class TalentCard extends StatelessWidget {
             Text(
               '$wins verified wins',
               style: TextStyle(
-                color: Colors.white.withOpacity(.65),
+                color: Colors.white.withOpacity(0.65),
               ),
             ),
             const SizedBox(height: 12),
@@ -980,7 +976,7 @@ class PageHeader extends StatelessWidget {
           Text(
             subtitle,
             style: TextStyle(
-              color: Colors.white.withOpacity(.65),
+              color: Colors.white.withOpacity(0.65),
             ),
           ),
         ],
@@ -1028,12 +1024,15 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
+  final TextEditingController emailController =
+      TextEditingController();
+
+  final TextEditingController passwordController =
+      TextEditingController();
 
   bool loading = false;
   bool createAccount = false;
-  bool obscurePassword = true;
+  bool hidePassword = true;
 
   @override
   void dispose() {
@@ -1042,7 +1041,7 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
+  Future<void> submitLogin() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
 
@@ -1058,7 +1057,9 @@ class _LoginPageState extends State<LoginPage> {
     if (password.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Password must be at least 6 characters.'),
+          content: Text(
+            'Password must be at least 6 characters.',
+          ),
         ),
       );
       return;
@@ -1080,7 +1081,7 @@ class _LoginPageState extends State<LoginPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              'Account created. Check your email if confirmation is required.',
+              'Account created successfully.',
             ),
           ),
         );
@@ -1099,179 +1100,18 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } on AuthException catch (e) {
+    } on AuthException catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.message),
+          content: Text(error.message),
         ),
       );
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Something went wrong: $e'),
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reality Duel'),
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            const SizedBox(height: 30),
-            const Icon(
-              Icons.public,
-              size: 70,
-            ),
-            const SizedBox(height: 20),
-            const Center(
-              child: Text(
-                'REALITY DUEL',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Center(
-              child: Text(
-                'The World Is Your Arena.',
-                style: TextStyle(
-                  fontSize: 16,
-                ),
-              ),
-            ),
-            const SizedBox(height: 35),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextField(
-              controller: passwordController,
-              obscureText: obscurePassword,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                prefixIcon: const Icon(Icons.lock_outline),
-                suffixIcon: IconButton(
-                  onPressed: () {
-                    setState(() {
-                      obscurePassword = !obscurePassword;
-                    });
-                  },
-                  icon: Icon(
-                    obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 25),
-            FilledButton(
-              onPressed: loading ? null : _submit,
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : Text(
-                      createAccount
-                          ? 'Create Account'
-                          : 'Login',
-                    ),
-            ),
-            const SizedBox(height: 10),
-            TextButton(
-              onPressed: loading
-                  ? null
-                  : () {
-                      setState(() {
-                        createAccount = !createAccount;
-                      });
-                    },
-              child: Text(
-                createAccount
-                    ? 'Already have an account? Login'
-                    : 'Create a new account',
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ============================================================
-// NOTIFICATIONS PAGE
-// ============================================================
-
-class NotificationsPage extends StatelessWidget {
-  const NotificationsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notifications'),
-      ),
-      body: ListView(
-        children: const [
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.emoji_events),
-            ),
-            title: Text('Welcome to Reality Duel'),
-            subtitle: Text(
-              'Start your first free duel and show your talent.',
-            ),
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.people),
-            ),
-            title: Text('Talent discovery'),
-            subtitle: Text(
-              'Companies will be able to discover proven talent.',
-            ),
-          ),
-          ListTile(
-            leading: CircleAvatar(
-              child: Icon(Icons.work),
-            ),
-            title: Text('Opportunities'),
-            subtitle: Text(
-              'Jobs, scholarships and sponsorships will appear here.',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+          content: Text(
+            'An unexpected error occurred: $
