@@ -24,10 +24,6 @@ Future<void> main() async {
 
 final supabase = Supabase.instance.client;
 
-// ============================================================
-// APP
-// ============================================================
-
 class RealityDuelApp extends StatelessWidget {
   const RealityDuelApp({super.key});
 
@@ -42,9 +38,7 @@ class RealityDuelApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: supabase.auth.currentSession == null
-          ? const LoginPage()
-          : const AppShell(),
+      home: const LoginPage(),
     );
   }
 }
@@ -70,19 +64,6 @@ class _AppShellState extends State<AppShell> {
     OpportunitiesPage(),
     TalentProfilePage(),
   ];
-
-  Future<void> logout() async {
-    await supabase.auth.signOut();
-
-    if (!mounted) return;
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => const LoginPage(),
-      ),
-      (route) => false,
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -383,6 +364,20 @@ class OpportunitiesPage extends StatelessWidget {
 class TalentProfilePage extends StatelessWidget {
   const TalentProfilePage({super.key});
 
+  Future<void> logout(BuildContext context) async {
+    await supabase.auth.signOut();
+
+    if (!context.mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginPage(),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = supabase.auth.currentUser;
@@ -470,20 +465,9 @@ class TalentProfilePage extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        FilledButton.icon(
-          onPressed: () async {
-            await supabase.auth.signOut();
-
-            if (!context.mounted) return;
-
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (_) => const LoginPage(),
-              ),
-              (route) => false,
-            );
-          },
+        const SizedBox(height: 24),
+        OutlinedButton.icon(
+          onPressed: () => logout(context),
           icon: const Icon(Icons.logout),
           label: const Text('Logout'),
         ),
@@ -540,6 +524,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
             controller: titleController,
             decoration: const InputDecoration(
               labelText: 'Challenge title',
+              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
@@ -548,6 +533,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
             maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'What must participants do?',
+              border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 12),
@@ -555,6 +541,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
             initialValue: duelType,
             decoration: const InputDecoration(
               labelText: 'Duel type',
+              border: OutlineInputBorder(),
             ),
             items: const [
               'Person vs Person',
@@ -563,12 +550,14 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               'Country vs Country',
               'Company vs Everyone',
               'Global Open',
-            ].map((item) {
-              return DropdownMenuItem<String>(
-                value: item,
-                child: Text(item),
-              );
-            }).toList(),
+            ].map(
+              (item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              },
+            ).toList(),
             onChanged: (value) {
               if (value == null) return;
 
@@ -788,6 +777,7 @@ class ProofPage extends StatelessWidget {
             icon: const Icon(Icons.videocam),
             label: const Text('Add Video'),
           ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () {},
             icon: const Icon(Icons.photo_library),
@@ -1101,7 +1091,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submitLogin() async {
     final email = emailController.text.trim();
-    final password = passwordController.text;
+    final password = passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1138,31 +1128,29 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        if (response.user == null) {
-          throw const AuthException(
-            'Account could not be created.',
-          );
-        }
+        if (response.user != null) {
+          final session = response.session;
 
-        if (response.session != null) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(
-              builder: (_) => const AppShell(),
-            ),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Account created. Please check your email to confirm your account.',
+          if (session != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AppShell(),
               ),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Account created. Please check your email to confirm your account.',
+                ),
+              ),
+            );
 
-          setState(() {
-            createAccount = false;
-          });
+            setState(() {
+              createAccount = false;
+            });
+          }
         }
       } else {
         await supabase.auth.signInWithPassword(
@@ -1172,11 +1160,11 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        Navigator.of(context).pushAndRemoveUntil(
+        Navigator.pushReplacement(
+          context,
           MaterialPageRoute(
             builder: (_) => const AppShell(),
           ),
-          (route) => false,
         );
       }
     } on AuthException catch (error) {
@@ -1184,7 +1172,9 @@ class _LoginPageState extends State<LoginPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(error.message),
+          content: Text(
+            error.message,
+          ),
         ),
       );
     } catch (error) {
@@ -1300,7 +1290,9 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     height: 52,
                     child: FilledButton(
-                      onPressed: loading ? null : submitLogin,
+                      onPressed: loading
+                          ? null
+                          : submitLogin,
                       child: loading
                           ? const SizedBox(
                               width: 24,
@@ -1337,7 +1329,9 @@ class _LoginPageState extends State<LoginPage> {
                       padding: EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(Icons.security),
+                          Icon(
+                            Icons.security,
+                          ),
                           SizedBox(width: 12),
                           Expanded(
                             child: Text(
