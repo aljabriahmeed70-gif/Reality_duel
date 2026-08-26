@@ -32,14 +32,15 @@ class RealityDuelApp extends StatelessWidget {
     return MaterialApp(
       title: 'Reality Duel',
       debugShowCheckedModeBanner: false,
-            theme: ThemeData(
+      theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: const LoginPage(),
-    );
+      home: supabase.auth.currentSession == null
+          ? const LoginPage()
+          : const AppShell(),
     );
   }
 }
@@ -454,8 +455,11 @@ class CreateDuelPage extends StatefulWidget {
 class _CreateDuelPageState extends State<CreateDuelPage> {
   String duelType = 'Person vs Person';
 
-  final titleController = TextEditingController();
-  final descriptionController = TextEditingController();
+  final TextEditingController titleController =
+      TextEditingController();
+
+  final TextEditingController descriptionController =
+      TextEditingController();
 
   @override
   void dispose() {
@@ -549,7 +553,9 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               if (titleController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Please enter a challenge title.'),
+                    content: Text(
+                      'Please enter a challenge title.',
+                    ),
                   ),
                 );
                 return;
@@ -753,7 +759,9 @@ class ProofPage extends StatelessWidget {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Proof submitted for review.'),
+                  content: Text(
+                    'Proof submitted for review.',
+                  ),
                 ),
               );
             },
@@ -1082,17 +1090,26 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
 
         if (response.user != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Account created successfully.',
+          if (response.session != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AppShell(),
               ),
-            ),
-          );
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Account created. Please check your email to confirm your account.',
+                ),
+              ),
+            );
 
-          setState(() {
-            createAccount = false;
-          });
+            setState(() {
+              createAccount = false;
+            });
+          }
         }
       } else {
         await supabase.auth.signInWithPassword(
@@ -1213,11 +1230,13 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
-                        onPressed: () {
-                          setState(() {
-                            hidePassword = !hidePassword;
-                          });
-                        },
+                        onPressed: loading
+                            ? null
+                            : () {
+                                setState(() {
+                                  hidePassword = !hidePassword;
+                                });
+                              },
                         icon: Icon(
                           hidePassword
                               ? Icons.visibility_outlined
@@ -1230,9 +1249,7 @@ class _LoginPageState extends State<LoginPage> {
                   SizedBox(
                     height: 52,
                     child: FilledButton(
-                      onPressed: loading
-                          ? null
-                          : submitLogin,
+                      onPressed: loading ? null : submitLogin,
                       child: loading
                           ? const SizedBox(
                               width: 24,
@@ -1254,8 +1271,7 @@ class _LoginPageState extends State<LoginPage> {
                         ? null
                         : () {
                             setState(() {
-                              createAccount =
-                                  !createAccount;
+                              createAccount = !createAccount;
                             });
                           },
                     child: Text(
