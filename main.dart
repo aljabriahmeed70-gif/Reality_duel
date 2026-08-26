@@ -32,15 +32,14 @@ class RealityDuelApp extends StatelessWidget {
     return MaterialApp(
       title: 'Reality Duel',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
+            theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: supabase.auth.currentSession == null
-    ? const LoginPage()
-    : const AppShell(),
+      home: const LoginPage(),
+    );
     );
   }
 }
