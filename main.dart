@@ -38,7 +38,9 @@ class RealityDuelApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: const LoginPage(),
+      home: supabase.auth.currentSession == null
+    ? const LoginPage()
+    : const AppShell(),
     );
   }
 }
