@@ -24,6 +24,10 @@ Future<void> main() async {
 
 final supabase = Supabase.instance.client;
 
+// ============================================================
+// APP
+// ============================================================
+
 class RealityDuelApp extends StatelessWidget {
   const RealityDuelApp({super.key});
 
@@ -66,6 +70,19 @@ class _AppShellState extends State<AppShell> {
     OpportunitiesPage(),
     TalentProfilePage(),
   ];
+
+  Future<void> logout() async {
+    await supabase.auth.signOut();
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => const LoginPage(),
+      ),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +172,10 @@ class HomePage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.public, size: 42),
+                const Icon(
+                  Icons.public,
+                  size: 42,
+                ),
                 const SizedBox(height: 14),
                 const Text(
                   'Your talent can open doors.',
@@ -365,6 +385,8 @@ class TalentProfilePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final user = supabase.auth.currentUser;
+
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -385,8 +407,20 @@ class TalentProfilePage extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 6),
+        Center(
+          child: Text(
+            user?.email ?? '',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.65),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
         const Center(
-          child: Text('Build proof. Get discovered.'),
+          child: Text(
+            'Build proof. Get discovered.',
+          ),
         ),
         const SizedBox(height: 22),
         const Row(
@@ -435,6 +469,23 @@ class TalentProfilePage extends StatelessWidget {
               'Complete free duels and submit video/photo proof.',
             ),
           ),
+        ),
+        const SizedBox(height: 20),
+        FilledButton.icon(
+          onPressed: () async {
+            await supabase.auth.signOut();
+
+            if (!context.mounted) return;
+
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const LoginPage(),
+              ),
+              (route) => false,
+            );
+          },
+          icon: const Icon(Icons.logout),
+          label: const Text('Logout'),
         ),
       ],
     );
@@ -501,7 +552,7 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: duelType,
+            initialValue: duelType,
             decoration: const InputDecoration(
               labelText: 'Duel type',
             ),
@@ -512,14 +563,12 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               'Country vs Country',
               'Company vs Everyone',
               'Global Open',
-            ].map(
-              (item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              },
-            ).toList(),
+            ].map((item) {
+              return DropdownMenuItem<String>(
+                value: item,
+                child: Text(item),
+              );
+            }).toList(),
             onChanged: (value) {
               if (value == null) return;
 
@@ -1052,7 +1101,7 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submitLogin() async {
     final email = emailController.text.trim();
-    final password = passwordController.text.trim();
+    final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1089,27 +1138,31 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        if (response.user != null) {
-          if (response.session != null) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AppShell(),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Account created. Please check your email to confirm your account.',
-                ),
-              ),
-            );
+        if (response.user == null) {
+          throw const AuthException(
+            'Account could not be created.',
+          );
+        }
 
-            setState(() {
-              createAccount = false;
-            });
-          }
+        if (response.session != null) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => const AppShell(),
+            ),
+            (route) => false,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Account created. Please check your email to confirm your account.',
+              ),
+            ),
+          );
+
+          setState(() {
+            createAccount = false;
+          });
         }
       } else {
         await supabase.auth.signInWithPassword(
@@ -1119,11 +1172,11 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        Navigator.pushReplacement(
-          context,
+        Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const AppShell(),
           ),
+          (route) => false,
         );
       }
     } on AuthException catch (error) {
@@ -1131,9 +1184,7 @@ class _LoginPageState extends State<LoginPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            error.message,
-          ),
+          content: Text(error.message),
         ),
       );
     } catch (error) {
@@ -1286,9 +1337,7 @@ class _LoginPageState extends State<LoginPage> {
                       padding: EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.security,
-                          ),
+                          Icon(Icons.security),
                           SizedBox(width: 12),
                           Expanded(
                             child: Text(
