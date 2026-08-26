@@ -4,51 +4,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  const supabasePublishableKey =
-      String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+  const supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://sdbfruxgoefdwyzhkjay.supabase.co',
+  );
 
-  if (supabaseUrl.isEmpty || supabasePublishableKey.isEmpty) {
-    runApp(const ConfigurationErrorApp());
-    return;
-  }
+  const supabaseKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2',
+  );
 
   await Supabase.initialize(
     url: supabaseUrl,
-    anonKey: supabasePublishableKey,
+    anonKey: supabaseKey,
   );
 
   runApp(const RealityDuelApp());
 }
 
-class ConfigurationErrorApp extends StatelessWidget {
-  const ConfigurationErrorApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Reality Duel',
-      home: Scaffold(
-        backgroundColor: const Color(0xFF080808),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Text(
-              'تعذر إعداد الاتصال بالخادم.\n'
-              'يرجى التأكد من إعدادات Supabase قبل بناء التطبيق.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+final supabase = Supabase.instance.client;
 
 class RealityDuelApp extends StatelessWidget {
   const RealityDuelApp({super.key});
@@ -56,47 +30,50 @@ class RealityDuelApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Reality Duel',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF080808),
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF8A2BE2),
-          brightness: Brightness.dark,
-        ),
+        brightness: Brightness.dark,
+        colorSchemeSeed: const Color(0xFF6C4DFF),
+        scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: const HomePage(),
+      home: supabase.auth.currentSession == null
+          ? const LoginPage()
+          : const AppShell(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+// ============================================================
+// APP SHELL
+// ============================================================
+
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<AppShell> createState() => _AppShellState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _AppShellState extends State<AppShell> {
   int currentIndex = 0;
 
-  final pages = const [
-    HomeContent(),
+  final List<Widget> pages = const [
+    HomePage(),
+    DuelsPage(),
     DiscoverPage(),
-    ChallengesPage(),
     OpportunitiesPage(),
-    ProfilePage(),
+    TalentProfilePage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: pages[currentIndex],
+      body: SafeArea(
+        child: pages[currentIndex],
+      ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: const Color(0xFF101010),
-        indicatorColor: const Color(0xFF2A2A2A),
         selectedIndex: currentIndex,
         onDestinationSelected: (index) {
           setState(() {
@@ -105,29 +82,29 @@ class _HomePageState extends State<HomePage> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.play_circle_outline),
-            selectedIcon: Icon(Icons.play_circle),
-            label: 'الرئيسية',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.sports_martial_arts_outlined),
+            selectedIcon: Icon(Icons.sports_martial_arts),
+            label: 'Duels',
           ),
           NavigationDestination(
             icon: Icon(Icons.search),
             selectedIcon: Icon(Icons.search),
-            label: 'اكتشف',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.emoji_events_outlined),
-            selectedIcon: Icon(Icons.emoji_events),
-            label: 'التحديات',
+            label: 'Talent',
           ),
           NavigationDestination(
             icon: Icon(Icons.work_outline),
             selectedIcon: Icon(Icons.work),
-            label: 'الفرص',
+            label: 'Opportunities',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
-            label: 'حسابي',
+            label: 'Profile',
           ),
         ],
       ),
@@ -135,421 +112,466 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class HomeContent extends StatelessWidget {
-  const HomeContent({super.key});
+// ============================================================
+// HOME
+// ============================================================
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: const Color(0xFF080808),
-            floating: true,
-            title: const Text(
-              'REALITY DUEL',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                letterSpacing: 1.5,
-              ),
-            ),
-            actions: [
-              IconButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const NotificationsPage(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.notifications_none),
-              ),
-            ],
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'العالم هو ساحتك.',
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'أظهر موهبتك، ادخل التحدي، وابحث عن فرصتك.',
-                    style: TextStyle(
-                      color: Colors.grey.shade400,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _featuredChallenge(context),
-                  const SizedBox(height: 28),
-                  const Text(
-                    'مواهب تستحق المشاهدة',
-                    style: TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                ],
-              ),
-            ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return TalentCard(index: index);
-              },
-              childCount: 5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _featuredChallenge(BuildContext context) {
-    return Container(
-      width: double.infinity,
+    return ListView(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF6A00FF),
-            Color(0xFFB000FF),
-          ],
+      children: [
+        const Text(
+          'REALITY DUEL',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 2,
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '🔥 التحدي الحالي',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
+        const SizedBox(height: 8),
+        const Text(
+          'The World Is Your Arena.',
+          style: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w800,
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'أظهر موهبتك للعالم',
-            style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-            ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'أظهر موهبتك. أثبتها. دع العالم يكتشفك.',
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.7),
+            fontSize: 16,
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'شارك بفيديو قصير ودع العالم يكتشف ما تستطيع فعله.',
-          ),
-          const SizedBox(height: 18),
-          FilledButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChallengeDetailsPage(),
+        ),
+        const SizedBox(height: 24),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.public, size: 42),
+                const SizedBox(height: 14),
+                const Text(
+                  'Your talent can open doors.',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              );
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
+                const SizedBox(height: 8),
+                const Text(
+                  'Join free challenges, submit proof, build your Talent Profile and get discovered by companies.',
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CreateDuelPage(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Create a Duel — Free'),
+                ),
+              ],
             ),
-            child: const Text('شارك الآن'),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 28),
+        const SectionTitle('Trending Duels'),
+        const DuelCard(
+          title: 'Best Street Football Skill',
+          type: 'Global • Free',
+          icon: Icons.sports_soccer,
+        ),
+        const DuelCard(
+          title: '60-Second Creative Challenge',
+          type: 'Talent • Free',
+          icon: Icons.auto_awesome,
+        ),
+        const DuelCard(
+          title: 'Company vs Company: Innovation',
+          type: 'Companies • Free to join',
+          icon: Icons.business,
+        ),
+        const SizedBox(height: 20),
+        const SectionTitle('Featured Talent'),
+        const TalentMini(
+          name: 'Lina Ahmed',
+          skill: 'Graphic Design',
+          score: 94,
+        ),
+        const TalentMini(
+          name: 'Omar Ali',
+          skill: 'Football',
+          score: 92,
+        ),
+      ],
     );
   }
 }
 
-class TalentCard extends StatelessWidget {
-  final int index;
+// ============================================================
+// DUELS
+// ============================================================
 
-  const TalentCard({super.key, required this.index});
+class DuelsPage extends StatelessWidget {
+  const DuelsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final talents = [
-      'موهبة رقم 1',
-      'موهبة رقم 2',
-      'موهبة رقم 3',
-      'موهبة رقم 4',
-      'موهبة رقم 5',
-    ];
-
-    final skills = [
-      'الغناء والأداء',
-      'الرسم والتصميم',
-      'الرياضة واللياقة',
-      'البرمجة والتقنية',
-      'صناعة المحتوى',
-    ];
-
-    return Card(
-      color: const Color(0xFF141414),
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => TalentDetailsPage(
-                talentName: talents[index],
-                skill: skills[index],
-                number: index + 1,
-              ),
-            ),
-          );
-        },
-        child: ListTile(
-          contentPadding: const EdgeInsets.all(12),
-          leading: CircleAvatar(
-            radius: 28,
-            child: Text('${index + 1}'),
-          ),
-          title: Text(
-            talents[index],
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          subtitle: Text(skills[index]),
-          trailing: const Icon(Icons.arrow_forward_ios, size: 18),
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const PageHeader(
+          title: 'Duels',
+          subtitle: 'All core challenges are free.',
         ),
-      ),
+        const DuelCard(
+          title: 'Best Street Football Skill',
+          type: 'Person vs Person',
+          icon: Icons.sports_soccer,
+        ),
+        const DuelCard(
+          title: 'Global Art Challenge',
+          type: 'Open to everyone',
+          icon: Icons.palette,
+        ),
+        const DuelCard(
+          title: 'Company Innovation Duel',
+          type: 'Company vs Company',
+          icon: Icons.business,
+        ),
+        const DuelCard(
+          title: 'Country Talent Challenge',
+          type: 'Country vs Country',
+          icon: Icons.flag,
+        ),
+      ],
     );
   }
 }
 
-class TalentDetailsPage extends StatefulWidget {
-  final String talentName;
-  final String skill;
-  final int number;
-
-  const TalentDetailsPage({
-    super.key,
-    required this.talentName,
-    required this.skill,
-    required this.number,
-  });
-
-  @override
-  State<TalentDetailsPage> createState() => _TalentDetailsPageState();
-}
-
-class _TalentDetailsPageState extends State<TalentDetailsPage> {
-  bool following = false;
-  int likes = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ملف الموهبة'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          CircleAvatar(
-            radius: 55,
-            child: Text(
-              '${widget.number}',
-              style: const TextStyle(fontSize: 32),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            widget.talentName,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.skill,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey.shade400,
-              fontSize: 17,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            height: 280,
-            decoration: BoxDecoration(
-              color: const Color(0xFF171717),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.play_circle_fill,
-                size: 80,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () {
-                  setState(() {
-                    likes++;
-                  });
-                },
-                icon: const Icon(Icons.favorite_border),
-                label: Text('إعجاب $likes'),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  setState(() {
-                    following = !following;
-                  });
-                },
-                icon: Icon(
-                  following ? Icons.check : Icons.person_add,
-                ),
-                label: Text(
-                  following ? 'تتابعه' : 'متابعة',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'عن الموهبة',
-            style: TextStyle(
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'هذه صفحة موهبة في Reality Duel. '
-            'يمكن إضافة الفيديوهات والإنجازات والتحديات '
-            'والمتابعين والفرص المهنية.',
-            style: TextStyle(
-              color: Colors.grey.shade400,
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+// ============================================================
+// DISCOVER
+// ============================================================
 
 class DiscoverPage extends StatelessWidget {
   const DiscoverPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('اكتشف المواهب'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          TextField(
-            decoration: InputDecoration(
-              hintText: 'ابحث عن موهبة أو مهارة...',
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: const Color(0xFF151515),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(18),
-                borderSide: BorderSide.none,
-              ),
-            ),
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const PageHeader(
+          title: 'Discover Talent',
+          subtitle: 'Find proven skills, not just followers.',
+        ),
+        TextField(
+          decoration: InputDecoration(
+            hintText: 'Search talent, skill or country',
+            prefixIcon: const Icon(Icons.search),
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.06),
           ),
-          const SizedBox(height: 24),
-          const Text(
-            'مواهب مقترحة',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          for (int i = 1; i <= 5; i++)
-            Card(
-              color: const Color(0xFF141414),
-              child: ListTile(
-                leading: CircleAvatar(
-                  child: Text('$i'),
-                ),
-                title: Text('موهبة رقم $i'),
-                subtitle: const Text('موهبة تستحق الاكتشاف'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => TalentDetailsPage(
-                        talentName: 'موهبة رقم $i',
-                        skill: 'مهارة متنوعة',
-                        number: i,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 20),
+        const TalentCard(
+          name: 'Lina Ahmed',
+          skill: 'Graphic Design • Video',
+          country: 'Yemen',
+          score: 94,
+          wins: 18,
+        ),
+        const TalentCard(
+          name: 'Omar Ali',
+          skill: 'Football • Fitness',
+          country: 'Egypt',
+          score: 92,
+          wins: 22,
+        ),
+        const TalentCard(
+          name: 'Sara Noor',
+          skill: 'Programming • AI',
+          country: 'Jordan',
+          score: 96,
+          wins: 31,
+        ),
+      ],
     );
   }
 }
 
-class ChallengesPage extends StatelessWidget {
-  const ChallengesPage({super.key});
+// ============================================================
+// OPPORTUNITIES
+// ============================================================
+
+class OpportunitiesPage extends StatelessWidget {
+  const OpportunitiesPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const PageHeader(
+          title: 'Opportunities',
+          subtitle: 'Jobs, scholarships, sponsorships and collaborations.',
+        ),
+        const OpportunityCard(
+          title: 'Junior Graphic Designer',
+          company: 'Global Creative Co.',
+          type: 'Job',
+          icon: Icons.work,
+        ),
+        const OpportunityCard(
+          title: 'Global Talent Scholarship',
+          company: 'Future Foundation',
+          type: 'Scholarship',
+          icon: Icons.school,
+        ),
+        const OpportunityCard(
+          title: 'Sports Creator Sponsorship',
+          company: 'Active Brand',
+          type: 'Sponsorship',
+          icon: Icons.star,
+        ),
+        const OpportunityCard(
+          title: 'AI Builder Collaboration',
+          company: 'Tech Lab',
+          type: 'Collaboration',
+          icon: Icons.handshake,
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// TALENT PROFILE
+// ============================================================
+
+class TalentProfilePage extends StatelessWidget {
+  const TalentProfilePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const CircleAvatar(
+          radius: 46,
+          child: Icon(
+            Icons.person,
+            size: 46,
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Center(
+          child: Text(
+            'Your Talent Profile',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+        const Center(
+          child: Text('Build proof. Get discovered.'),
+        ),
+        const SizedBox(height: 22),
+        const Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Stat(
+              label: 'Talent Score',
+              value: '0',
+            ),
+            Stat(
+              label: 'Wins',
+              value: '0',
+            ),
+            Stat(
+              label: 'Proofs',
+              value: '0',
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SectionTitle('Your Skills'),
+        const Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            Chip(
+              label: Text('Sports'),
+            ),
+            Chip(
+              label: Text('Creativity'),
+            ),
+            Chip(
+              label: Text('Add skill'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const SectionTitle('Proof & Achievements'),
+        const Card(
+          child: ListTile(
+            leading: Icon(Icons.verified),
+            title: Text(
+              'Verified achievements will appear here.',
+            ),
+            subtitle: Text(
+              'Complete free duels and submit video/photo proof.',
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// CREATE DUEL
+// ============================================================
+
+class CreateDuelPage extends StatefulWidget {
+  const CreateDuelPage({super.key});
+
+  @override
+  State<CreateDuelPage> createState() => _CreateDuelPageState();
+}
+
+class _CreateDuelPageState extends State<CreateDuelPage> {
+  String duelType = 'Person vs Person';
+
+  final TextEditingController titleController =
+      TextEditingController();
+
+  final TextEditingController descriptionController =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    descriptionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('التحديات'),
+        title: const Text('Create Duel'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         children: [
-          ChallengeTile(
-            title: 'أظهر موهبتك للعالم',
-            subtitle: 'تحدٍ مفتوح لجميع المواهب',
-            icon: Icons.flash_on,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ChallengeDetailsPage(),
-                ),
-              );
+          const Text(
+            'Create a challenge for free.',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: titleController,
+            decoration: const InputDecoration(
+              labelText: 'Challenge title',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: descriptionController,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'What must participants do?',
+            ),
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            value: duelType,
+            decoration: const InputDecoration(
+              labelText: 'Duel type',
+            ),
+            items: const [
+              'Person vs Person',
+              'Team vs Team',
+              'Company vs Company',
+              'Country vs Country',
+              'Company vs Everyone',
+              'Global Open',
+            ].map(
+              (item) {
+                return DropdownMenuItem<String>(
+                  value: item,
+                  child: Text(item),
+                );
+              },
+            ).toList(),
+            onChanged: (value) {
+              if (value == null) return;
+
+              setState(() {
+                duelType = value;
+              });
             },
           ),
-          ChallengeTile(
-            title: 'تحدي الإبداع',
-            subtitle: 'ابتكر شيئًا مميزًا',
-            icon: Icons.auto_awesome,
-            onTap: () {},
+          const SizedBox(height: 12),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.rule),
+              title: Text('Winning rules'),
+              subtitle: Text(
+                'Rules are locked when the duel starts. Score can combine execution, quality, creativity and public judging.',
+              ),
+            ),
           ),
-          ChallengeTile(
-            title: 'تحدي المهارات',
-            subtitle: 'أثبت ما تستطيع فعله',
-            icon: Icons.emoji_events,
-            onTap: () {},
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.video_camera_back),
+              title: Text('Proof required'),
+              subtitle: Text(
+                'Participants can submit video and photos.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: () {
+              if (titleController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Please enter a challenge title.',
+                    ),
+                  ),
+                );
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Duel created — free for everyone to join.',
+                  ),
+                ),
+              );
+
+              Navigator.pop(context);
+            },
+            child: const Text('Publish Duel'),
           ),
         ],
       ),
@@ -557,90 +579,295 @@ class ChallengesPage extends StatelessWidget {
   }
 }
 
-class ChallengeTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
+// ============================================================
+// DUEL CARD
+// ============================================================
 
-  const ChallengeTile({
+class DuelCard extends StatelessWidget {
+  final String title;
+  final String type;
+  final IconData icon;
+
+  const DuelCard({
     super.key,
     required this.title,
-    required this.subtitle,
+    required this.type,
     required this.icon,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF151515),
-      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
+        contentPadding: const EdgeInsets.all(14),
         leading: CircleAvatar(
-          radius: 28,
           child: Icon(icon),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        subtitle: Text(subtitle),
-        trailing: const Icon(Icons.arrow_forward_ios),
-        onTap: onTap,
+        subtitle: Text(type),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => DuelDetailPage(
+                title: title,
+                type: type,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class ChallengeDetailsPage extends StatelessWidget {
-  const ChallengeDetailsPage({super.key});
+// ============================================================
+// DUEL DETAIL
+// ============================================================
+
+class DuelDetailPage extends StatelessWidget {
+  final String title;
+  final String type;
+
+  const DuelDetailPage({
+    super.key,
+    required this.title,
+    required this.type,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('تفاصيل التحدي'),
+        title: const Text('Duel'),
       ),
-      body: Padding(
+      body: ListView(
         padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(type),
+          const SizedBox(height: 20),
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(18),
+              child: Text(
+                'Rules are public and locked when the challenge starts. Complete the real-world task and submit proof.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.verified),
+              title: Text('Proof'),
+              subtitle: Text(
+                'Video and photos can be submitted for verification.',
+              ),
+            ),
+          ),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.emoji_events),
+              title: Text('Scoring'),
+              subtitle: Text(
+                'Execution, quality, creativity and judging can be weighted per challenge.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProofPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.sports_score),
+            label: const Text('Join Duel — Free'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// PROOF
+// ============================================================
+
+class ProofPage extends StatelessWidget {
+  const ProofPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Submit Proof'),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const Text(
+            'Show what you did.',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Upload video or photos as evidence of your real-world challenge.',
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.videocam),
+            label: const Text('Add Video'),
+          ),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.photo_library),
+            label: const Text('Add Photos'),
+          ),
+          const SizedBox(height: 20),
+          const Card(
+            child: ListTile(
+              leading: Icon(Icons.security),
+              title: Text('Verification'),
+              subtitle: Text(
+                'Future backend will run automated checks and human review for suspicious submissions.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Proof submitted for review.',
+                  ),
+                ),
+              );
+            },
+            child: const Text('Submit Proof'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ============================================================
+// TALENT MINI
+// ============================================================
+
+class TalentMini extends StatelessWidget {
+  final String name;
+  final String skill;
+  final int score;
+
+  const TalentMini({
+    super.key,
+    required this.name,
+    required this.skill,
+    required this.score,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: const CircleAvatar(
+          child: Icon(Icons.person),
+        ),
+        title: Text(name),
+        subtitle: Text(skill),
+        trailing: Text(
+          '$score',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// TALENT CARD
+// ============================================================
+
+class TalentCard extends StatelessWidget {
+  final String name;
+  final String skill;
+  final String country;
+  final int score;
+  final int wins;
+
+  const TalentCard({
+    super.key,
+    required this.name,
+    required this.skill,
+    required this.country,
+    required this.score,
+    required this.wins,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.emoji_events, size: 70),
-            const SizedBox(height: 20),
-            const Text(
-              'أظهر موهبتك للعالم',
+            Row(
+              children: [
+                const CircleAvatar(
+                  child: Icon(Icons.person),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                Text('$score/100'),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(skill),
+            Text(country),
+            Text(
+              '$wins verified wins',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w900,
+                color: Colors.white.withOpacity(0.65),
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'شارك بفيديو يثبت موهبتك وادخل المنافسة.',
-              style: TextStyle(
-                color: Colors.grey.shade400,
-                fontSize: 17,
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'سيتم تفعيل رفع الفيديو في المرحلة التالية.',
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.video_camera_back),
-                label: const Text('إرسال المشاركة'),
-              ),
+            OutlinedButton(
+              onPressed: () {},
+              child: const Text('View Talent Profile'),
             ),
           ],
         ),
@@ -649,162 +876,154 @@ class ChallengeDetailsPage extends StatelessWidget {
   }
 }
 
-class OpportunitiesPage extends StatelessWidget {
-  const OpportunitiesPage({super.key});
+// ============================================================
+// OPPORTUNITY CARD
+// ============================================================
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('الفرص'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          OpportunityTile(
-            title: 'فرصة عمل للمواهب',
-            company: 'شركة تبحث عن مبدعين',
-            icon: Icons.business_center,
-          ),
-          OpportunityTile(
-            title: 'منحة للمبدعين',
-            company: 'فرصة دعم للمواهب',
-            icon: Icons.school,
-          ),
-          OpportunityTile(
-            title: 'رعاية موهبة',
-            company: 'فرصة للتعاون مع الشركات',
-            icon: Icons.handshake,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class OpportunityTile extends StatelessWidget {
+class OpportunityCard extends StatelessWidget {
   final String title;
   final String company;
+  final String type;
   final IconData icon;
 
-  const OpportunityTile({
+  const OpportunityCard({
     super.key,
     required this.title,
     required this.company,
+    required this.type,
     required this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      color: const Color(0xFF151515),
-      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
         leading: CircleAvatar(
-          radius: 28,
           child: Icon(icon),
         ),
         title: Text(
           title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        subtitle: Text(company),
-        trailing: FilledButton(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('سيتم فتح تفاصيل الفرصة قريبًا.'),
-              ),
-            );
-          },
-          child: const Text('عرض'),
+        subtitle: Text('$company • $type'),
+        trailing: const Icon(
+          Icons.arrow_forward_ios,
+          size: 16,
         ),
       ),
     );
   }
 }
 
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+// ============================================================
+// STAT
+// ============================================================
+
+class Stat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const Stat({
+    super.key,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('ملفي'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('الإعدادات ستتوفر في المرحلة التالية.'),
-                ),
-              );
-            },
-            icon: const Icon(Icons.settings_outlined),
+    return Column(
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+        ),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ============================================================
+// PAGE HEADER
+// ============================================================
+
+class PageHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const PageHeader({
+    super.key,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            radius: 55,
-            child: Icon(
-              Icons.person,
-              size: 55,
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'ملف موهبتي',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 8),
           Text(
-            'أنشئ ملفك ليكتشفك الجمهور والشركات.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.grey.shade400,
+            title,
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 28),
-          FilledButton.icon(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'إنشاء الملف الشخصي سيتم ربطه بقاعدة البيانات.',
-                  ),
-                ),
-              );
-            },
-            icon: const Icon(Icons.edit),
-            label: const Text('إنشاء ملف الموهبة'),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LoginPage(),
-                ),
-              );
-            },
-            icon: const Icon(Icons.login),
-            label: const Text('تسجيل الدخول'),
+          const SizedBox(height: 5),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.65),
+            ),
           ),
         ],
       ),
     );
   }
 }
+
+// ============================================================
+// SECTION TITLE
+// ============================================================
+
+class SectionTitle extends StatelessWidget {
+  final String text;
+
+  const SectionTitle(
+    this.text, {
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// LOGIN PAGE
+// ============================================================
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -814,5 +1033,278 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController
+  final TextEditingController emailController =
+      TextEditingController();
+
+  final TextEditingController passwordController =
+      TextEditingController();
+
+  bool loading = false;
+  bool createAccount = false;
+  bool hidePassword = true;
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> submitLogin() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please enter email and password.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Password must be at least 6 characters.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      if (createAccount) {
+        final response = await supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+
+        if (!mounted) return;
+
+        if (response.user != null) {
+          if (response.session != null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const AppShell(),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Account created. Please check your email to confirm your account.',
+                ),
+              ),
+            );
+
+            setState(() {
+              createAccount = false;
+            });
+          }
+        }
+      } else {
+        await supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+
+        if (!mounted) return;
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AppShell(),
+          ),
+        );
+      }
+    } on AuthException catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message,
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'An unexpected error occurred: $error',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 500,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Icon(
+                    Icons.public,
+                    size: 70,
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'REALITY DUEL',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'The World Is Your Arena.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 35),
+                  Text(
+                    createAccount
+                        ? 'Create your account'
+                        : 'Welcome back',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 25,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    enabled: !loading,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                      hintText: 'Enter your email',
+                      prefixIcon: Icon(
+                        Icons.email_outlined,
+                      ),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: hidePassword,
+                    enabled: !loading,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      hintText: 'At least 6 characters',
+                      prefixIcon: const Icon(
+                        Icons.lock_outline,
+                      ),
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        onPressed: loading
+                            ? null
+                            : () {
+                                setState(() {
+                                  hidePassword = !hidePassword;
+                                });
+                              },
+                        icon: Icon(
+                          hidePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      onPressed: loading ? null : submitLogin,
+                      child: loading
+                          ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              createAccount
+                                  ? 'Create Account'
+                                  : 'Login',
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextButton(
+                    onPressed: loading
+                        ? null
+                        : () {
+                            setState(() {
+                              createAccount = !createAccount;
+                            });
+                          },
+                    child: Text(
+                      createAccount
+                          ? 'Already have an account? Login'
+                          : 'Create a new account',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.security,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Your account is securely managed by Supabase.',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
