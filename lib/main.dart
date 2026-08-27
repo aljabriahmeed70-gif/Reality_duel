@@ -171,17 +171,54 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 FilledButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CreateDuelPage(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Create a Duel — Free'),
-                ),
+  onPressed: () {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Create a Duel'),
+            content: const Text(
+              'You need an account to create a Duel.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LoginPage(),
+                    ),
+                  );
+                },
+                child: const Text('Login / Create Account'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                child: const Text('Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const CreateDuelPage(),
+      ),
+    );
+  },
+  icon: const Icon(Icons.add),
+  label: const Text('Create a Duel — Free'),
+),
               ],
             ),
           ),
