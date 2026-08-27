@@ -25,6 +25,25 @@ jobs:
       - name: Generate Android project
         run: flutter create . --platforms=android
 
+      - name: Enable Internet
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text()
+
+          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+
+          if permission not in text:
+              text = text.replace(
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    ' + permission
+              )
+
+          path.write_text(text)
+          PY
+
       - name: Build APK
         run: |
           flutter build apk --release \
