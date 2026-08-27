@@ -28,8 +28,21 @@ final supabase = Supabase.instance.client;
 // APP
 // ============================================================
 
-class RealityDuelApp extends StatelessWidget {
+class RealityDuelApp extends StatefulWidget {
   const RealityDuelApp({super.key});
+
+  @override
+  State<RealityDuelApp> createState() => _RealityDuelAppState();
+}
+
+class _RealityDuelAppState extends State<RealityDuelApp> {
+  String selectedLanguage = 'English';
+
+  void changeLanguage(String language) {
+    setState(() {
+      selectedLanguage = language;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,15 +55,16 @@ class RealityDuelApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: const AppShell(),
+      home: AppShell(
+        selectedLanguage: selectedLanguage,
+        onLanguageChanged: changeLanguage,
+      ),
     );
   }
 }
-
 // ============================================================
 // APP SHELL
 // ============================================================
-
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
 
@@ -76,34 +90,41 @@ class _AppShellState extends State<AppShell> {
         index: currentIndex,
         children: pages,
       ),
+
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
+
         onDestinationSelected: (index) {
           setState(() {
             currentIndex = index;
           });
         },
+
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.play_arrow_outlined),
             selectedIcon: Icon(Icons.play_arrow),
             label: 'Feed',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.sports_martial_arts_outlined),
             selectedIcon: Icon(Icons.sports_martial_arts),
             label: 'Duels',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.search),
             selectedIcon: Icon(Icons.search),
             label: 'Talent',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.work_outline),
             selectedIcon: Icon(Icons.work),
             label: 'Opportunities',
           ),
+
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
@@ -111,6 +132,114 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
+
+      // 🌐 زر اللغات — يظهر بشكل واضح أعلى التطبيق
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            showDragHandle: true,
+            builder: (context) {
+              return SafeArea(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    const Text(
+                      '🌐 Language',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    const Text(
+                      'Choose your language',
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇬🇧',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('English'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇸🇦',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('العربية'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇪🇸',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('Español'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇫🇷',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('Français'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇹🇷',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('Türkçe'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+
+                    ListTile(
+                      leading: const Text(
+                        '🇨🇳',
+                        style: TextStyle(fontSize: 28),
+                      ),
+                      title: const Text('中文'),
+                      onTap: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+        icon: const Icon(Icons.language),
+        label: const Text('Language'),
+      ),
+
+      floatingActionButtonLocation:
+          FloatingActionButtonLocation.endFloat,
     );
   }
 }
