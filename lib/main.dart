@@ -24,6 +24,10 @@ Future<void> main() async {
 
 final supabase = Supabase.instance.client;
 
+// ============================================================
+// APP
+// ============================================================
+
 class RealityDuelApp extends StatelessWidget {
   const RealityDuelApp({super.key});
 
@@ -58,7 +62,7 @@ class _AppShellState extends State<AppShell> {
   int currentIndex = 0;
 
   final List<Widget> pages = const [
-    HomePage(),
+    VideoFeedPage(),
     DuelsPage(),
     DiscoverPage(),
     OpportunitiesPage(),
@@ -68,8 +72,9 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: pages[currentIndex],
+      body: IndexedStack(
+        index: currentIndex,
+        children: pages,
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
@@ -80,9 +85,9 @@ class _AppShellState extends State<AppShell> {
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: Icon(Icons.play_arrow_outlined),
+            selectedIcon: Icon(Icons.play_arrow),
+            label: 'Feed',
           ),
           NavigationDestination(
             icon: Icon(Icons.sports_martial_arts_outlined),
@@ -111,146 +116,434 @@ class _AppShellState extends State<AppShell> {
 }
 
 // ============================================================
-// HOME
+// VIDEO FEED
 // ============================================================
 
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class VideoFeedPage extends StatefulWidget {
+  const VideoFeedPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const Text(
-          'REALITY DUEL',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 2,
-          ),
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'The World Is Your Arena.',
-          style: TextStyle(
-            fontSize: 30,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'أظهر موهبتك. أثبتها. دع العالم يكتشفك.',
-          style: TextStyle(
-            color: Colors.white.withOpacity(0.7),
-            fontSize: 16,
-          ),
-        ),
-        const SizedBox(height: 24),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(
-                  Icons.public,
-                  size: 42,
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Your talent can open doors.',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Join free challenges, submit proof, build your Talent Profile and get discovered by companies.',
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-  onPressed: () {
+  State<VideoFeedPage> createState() => _VideoFeedPageState();
+}
+
+class _VideoFeedPageState extends State<VideoFeedPage> {
+  final PageController pageController = PageController();
+
+  final List<FeedVideo> videos = const [
+    FeedVideo(
+      username: 'Reality Talent',
+      title: 'Show your talent. Prove it.',
+      description:
+          'The world is your arena. Join Reality Duel and let the world discover you.',
+      icon: Icons.star,
+    ),
+    FeedVideo(
+      username: 'Football Talent',
+      title: 'Street Football Challenge',
+      description:
+          'Skills, creativity and execution. Who would win this Duel?',
+      icon: Icons.sports_soccer,
+    ),
+    FeedVideo(
+      username: 'Creative Talent',
+      title: '60 Second Creative Challenge',
+      description:
+          'You have 60 seconds. Show the world what you can create.',
+      icon: Icons.auto_awesome,
+    ),
+    FeedVideo(
+      username: 'Future Talent',
+      title: 'Your talent can open doors.',
+      description:
+          'Build proof, get discovered and find opportunities through Reality Duel.',
+      icon: Icons.public,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> requireLogin(
+    BuildContext context, {
+    required String action,
+  }) async {
     final user = supabase.auth.currentUser;
 
-    if (user == null) {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Create a Duel'),
-            content: const Text(
-              'You need an account to create a Duel.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LoginPage(),
-                    ),
-                  );
-                },
-                child: const Text('Login / Create Account'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
+    if (user != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$action is available for your account.'),
+        ),
       );
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CreateDuelPage(),
-      ),
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Login required'),
+          content: Text(
+            'You can watch videos without an account.\n\n'
+            'To $action, please login or create a free account.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('Login / Create Account'),
+            ),
+          ],
+        );
+      },
     );
-  },
-  icon: const Icon(Icons.add),
-  label: const Text('Create a Duel — Free'),
-),
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: pageController,
+      scrollDirection: Axis.vertical,
+      itemCount: videos.length,
+      itemBuilder: (context, index) {
+        final video = videos[index];
+
+        return VideoFeedItem(
+          video: video,
+          onLike: () {
+            requireLogin(
+              context,
+              action: 'like this video',
+            );
+          },
+          onComment: () {
+            requireLogin(
+              context,
+              action: 'comment on this video',
+            );
+          },
+          onFollow: () {
+            requireLogin(
+              context,
+              action: 'follow this talent',
+            );
+          },
+          onShare: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Share feature coming soon.'),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+// ============================================================
+// FEED VIDEO MODEL
+// ============================================================
+
+class FeedVideo {
+  final String username;
+  final String title;
+  final String description;
+  final IconData icon;
+
+  const FeedVideo({
+    required this.username,
+    required this.title,
+    required this.description,
+    required this.icon,
+  });
+}
+
+// ============================================================
+// VIDEO FEED ITEM
+// ============================================================
+
+class VideoFeedItem extends StatelessWidget {
+  final FeedVideo video;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+  final VoidCallback onFollow;
+  final VoidCallback onShare;
+
+  const VideoFeedItem({
+    super.key,
+    required this.video,
+    required this.onLike,
+    required this.onComment,
+    required this.onFollow,
+    required this.onShare,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // ------------------------------------------------------
+        // VIDEO PLACEHOLDER
+        // ------------------------------------------------------
+
+        Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0xFF151522),
+                Color(0xFF26184A),
+                Color(0xFF09090F),
+              ],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  video.icon,
+                  size: 100,
+                  color: Colors.white,
+                ),
+                const SizedBox(height: 20),
+                const Icon(
+                  Icons.play_circle_fill,
+                  size: 72,
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'VIDEO',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 4,
+                  ),
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 28),
-        const SectionTitle('Trending Duels'),
-        const DuelCard(
-          title: 'Best Street Football Skill',
-          type: 'Global • Free',
-          icon: Icons.sports_soccer,
+
+        // ------------------------------------------------------
+        // TOP BAR
+        // ------------------------------------------------------
+
+        SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'REALITY DUEL',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(
+                      Icons.search,
+                      size: 28,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        const DuelCard(
-          title: '60-Second Creative Challenge',
-          type: 'Talent • Free',
-          icon: Icons.auto_awesome,
+
+        // ------------------------------------------------------
+        // RIGHT ACTIONS
+        // ------------------------------------------------------
+
+        Positioned(
+          right: 10,
+          bottom: 100,
+          child: Column(
+            children: [
+              const CircleAvatar(
+                radius: 27,
+                child: Icon(
+                  Icons.person,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              _FeedAction(
+                icon: Icons.favorite_border,
+                label: 'Like',
+                onTap: onLike,
+              ),
+
+              const SizedBox(height: 18),
+
+              _FeedAction(
+                icon: Icons.comment_outlined,
+                label: 'Comment',
+                onTap: onComment,
+              ),
+
+              const SizedBox(height: 18),
+
+              _FeedAction(
+                icon: Icons.share_outlined,
+                label: 'Share',
+                onTap: onShare,
+              ),
+
+              const SizedBox(height: 18),
+
+              _FeedAction(
+                icon: Icons.person_add_alt_1,
+                label: 'Follow',
+                onTap: onFollow,
+              ),
+            ],
+          ),
         ),
-        const DuelCard(
-          title: 'Company vs Company: Innovation',
-          type: 'Companies • Free to join',
-          icon: Icons.business,
+
+        // ------------------------------------------------------
+        // BOTTOM INFORMATION
+        // ------------------------------------------------------
+
+        Positioned(
+          left: 16,
+          right: 80,
+          bottom: 105,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 20,
+                    child: Icon(
+                      Icons.person,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    '@${video.username}',
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                video.title,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                video.description,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.85),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.emoji_events_outlined,
+                    size: 19,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Reality Duel Challenge',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.85),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 20),
-        const SectionTitle('Featured Talent'),
-        const TalentMini(
-          name: 'Lina Ahmed',
-          skill: 'Graphic Design',
-          score: 94,
+      ],
+    );
+  }
+}
+
+// ============================================================
+// FEED ACTION
+// ============================================================
+
+class _FeedAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _FeedAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Material(
+          color: Colors.black.withOpacity(0.35),
+          shape: const CircleBorder(),
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                icon,
+                size: 28,
+              ),
+            ),
+          ),
         ),
-        const TalentMini(
-          name: 'Omar Ali',
-          skill: 'Football',
-          score: 92,
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -292,6 +585,58 @@ class DuelsPage extends StatelessWidget {
           title: 'Country Talent Challenge',
           type: 'Country vs Country',
           icon: Icons.flag,
+        ),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: () {
+            final user = supabase.auth.currentUser;
+
+            if (user == null) {
+              showDialog(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Create a Duel'),
+                    content: const Text(
+                      'You need an account to create a Duel.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const LoginPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Login / Create Account',
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+              return;
+            }
+
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const CreateDuelPage(),
+              ),
+            );
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Create a Duel — Free'),
         ),
       ],
     );
@@ -363,7 +708,8 @@ class OpportunitiesPage extends StatelessWidget {
       children: [
         const PageHeader(
           title: 'Opportunities',
-          subtitle: 'Jobs, scholarships, sponsorships and collaborations.',
+          subtitle:
+              'Jobs, scholarships, sponsorships and collaborations.',
         ),
         const OpportunityCard(
           title: 'Junior Graphic Designer',
@@ -409,7 +755,7 @@ class TalentProfilePage extends StatelessWidget {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (_) => const LoginPage(),
+        builder: (_) => const AppShell(),
       ),
       (route) => false,
     );
@@ -442,7 +788,7 @@ class TalentProfilePage extends StatelessWidget {
         const SizedBox(height: 6),
         Center(
           child: Text(
-            user?.email ?? '',
+            user?.email ?? 'Guest User',
             style: TextStyle(
               color: Colors.white.withOpacity(0.65),
             ),
@@ -503,11 +849,24 @@ class TalentProfilePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 24),
-        OutlinedButton.icon(
-          onPressed: () => logout(context),
-          icon: const Icon(Icons.logout),
-          label: const Text('Logout'),
-        ),
+        if (user == null)
+          FilledButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const LoginPage(),
+                ),
+              );
+            },
+            child: const Text('Login / Create Account'),
+          )
+        else
+          OutlinedButton.icon(
+            onPressed: () => logout(context),
+            icon: const Icon(Icons.logout),
+            label: const Text('Logout'),
+          ),
       ],
     );
   }
@@ -764,53 +1123,56 @@ class DuelDetailPage extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-  onPressed: () {
-    final user = supabase.auth.currentUser;
+            onPressed: () {
+              final user = supabase.auth.currentUser;
 
-    if (user == null) {
-      showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Text('Join Reality Duel'),
-            content: const Text(
-              'You need an account to join a Duel.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LoginPage(),
-                    ),
-                  );
-                },
-                child: const Text('Login / Create Account'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancel'),
-              ),
-            ],
-          );
-        },
-      );
-      return;
-    }
+              if (user == null) {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: const Text('Join Reality Duel'),
+                      content: const Text(
+                        'You need an account to join a Duel.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.pop(context);
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ProofPage(),
-      ),
-    );
-  },
-  icon: const Icon(Icons.sports_score),
-  label: const Text('Join Duel — Free'),
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const LoginPage(),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Login / Create Account',
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                return;
+              }
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const ProofPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.sports_score),
+            label: const Text('Join Duel — Free'),
           ),
         ],
       ),
@@ -1214,7 +1576,6 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       if (createAccount) {
-        // إنشاء حساب جديد
         final response = await supabase.auth.signUp(
           email: email,
           password: password,
@@ -1223,8 +1584,6 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
 
         if (response.user != null) {
-          // Confirm email مغلق في Supabase،
-          // لذلك يفترض أن يحصل المستخدم على Session مباشرة.
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
@@ -1234,7 +1593,6 @@ class _LoginPageState extends State<LoginPage> {
           );
         }
       } else {
-        // تسجيل الدخول
         await supabase.auth.signInWithPassword(
           email: email,
           password: password,
@@ -1257,8 +1615,11 @@ class _LoginPageState extends State<LoginPage> {
 
       if (message.toLowerCase().contains('invalid login')) {
         message = 'Email or password is incorrect.';
-      } else if (message.toLowerCase().contains('already registered')) {
-        message = 'This email is already registered. Please login.';
+      } else if (message
+          .toLowerCase()
+          .contains('already registered')) {
+        message =
+            'This email is already registered. Please login.';
       } else if (message.toLowerCase().contains('rate limit')) {
         message =
             'Too many attempts. Please wait a little and try again.';
@@ -1307,7 +1668,6 @@ class _LoginPageState extends State<LoginPage> {
                     size: 70,
                   ),
                   const SizedBox(height: 20),
-
                   const Text(
                     'REALITY DUEL',
                     textAlign: TextAlign.center,
@@ -1317,9 +1677,7 @@ class _LoginPageState extends State<LoginPage> {
                       letterSpacing: 2,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     'The World Is Your Arena.',
                     textAlign: TextAlign.center,
@@ -1328,9 +1686,7 @@ class _LoginPageState extends State<LoginPage> {
                       color: Colors.white.withOpacity(0.7),
                     ),
                   ),
-
                   const SizedBox(height: 35),
-
                   Text(
                     createAccount
                         ? 'Create your account'
@@ -1341,9 +1697,7 @@ class _LoginPageState extends State<LoginPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   TextField(
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -1357,9 +1711,7 @@ class _LoginPageState extends State<LoginPage> {
                       border: OutlineInputBorder(),
                     ),
                   ),
-
                   const SizedBox(height: 14),
-
                   TextField(
                     controller: passwordController,
                     obscureText: hidePassword,
@@ -1387,9 +1739,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   SizedBox(
                     height: 52,
                     child: FilledButton(
@@ -1409,9 +1759,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                   ),
-
                   const SizedBox(height: 14),
-
                   TextButton(
                     onPressed: loading
                         ? null
@@ -1426,9 +1774,7 @@ class _LoginPageState extends State<LoginPage> {
                           : 'Create a new account',
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   const Card(
                     child: Padding(
                       padding: EdgeInsets.all(16),
