@@ -38,7 +38,7 @@ class RealityDuelApp extends StatelessWidget {
         colorSchemeSeed: const Color(0xFF6C4DFF),
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
-      home: const LoginPage(),
+      home: const AuthGate(),
     );
   }
 }
@@ -1061,6 +1061,25 @@ class SectionTitle extends StatelessWidget {
 }
 
 // ============================================================
+// AUTH GATE
+// ============================================================
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final session = supabase.auth.currentSession;
+
+    if (session != null) {
+      return const AppShell();
+    }
+
+    return const LoginPage();
+  }
+}
+
+// ============================================================
 // LOGIN PAGE
 // ============================================================
 
@@ -1091,13 +1110,13 @@ class _LoginPageState extends State<LoginPage> {
 
   Future<void> submitLogin() async {
     final email = emailController.text.trim();
-    final password = passwordController.text.trim();
+    final password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Please enter email and password.',
+            'Please enter your email and password.',
           ),
         ),
       );
@@ -1121,6 +1140,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       if (createAccount) {
+        // إنشاء حساب جديد
         final response = await supabase.auth.signUp(
           email: email,
           password: password,
@@ -1129,30 +1149,18 @@ class _LoginPageState extends State<LoginPage> {
         if (!mounted) return;
 
         if (response.user != null) {
-          final session = response.session;
-
-          if (session != null) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const AppShell(),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Account created. Please check your email to confirm your account.',
-                ),
-              ),
-            );
-
-            setState(() {
-              createAccount = false;
-            });
-          }
+          // Confirm email مغلق في Supabase،
+          // لذلك يفترض أن يحصل المستخدم على Session مباشرة.
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AppShell(),
+            ),
+            (route) => false,
+          );
         }
       } else {
+        // تسجيل الدخول
         await supabase.auth.signInWithPassword(
           email: email,
           password: password,
@@ -1160,30 +1168,40 @@ class _LoginPageState extends State<LoginPage> {
 
         if (!mounted) return;
 
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (_) => const AppShell(),
           ),
+          (route) => false,
         );
       }
     } on AuthException catch (error) {
       if (!mounted) return;
 
+      String message = error.message;
+
+      if (message.toLowerCase().contains('invalid login')) {
+        message = 'Email or password is incorrect.';
+      } else if (message.toLowerCase().contains('already registered')) {
+        message = 'This email is already registered. Please login.';
+      } else if (message.toLowerCase().contains('rate limit')) {
+        message =
+            'Too many attempts. Please wait a little and try again.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            error.message,
-          ),
+          content: Text(message),
         ),
       );
     } catch (error) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text(
-            'An unexpected error occurred: $error',
+            'Something went wrong. Please try again.',
           ),
         ),
       );
@@ -1215,6 +1233,7 @@ class _LoginPageState extends State<LoginPage> {
                     size: 70,
                   ),
                   const SizedBox(height: 20),
+
                   const Text(
                     'REALITY DUEL',
                     textAlign: TextAlign.center,
@@ -1224,7 +1243,9 @@ class _LoginPageState extends State<LoginPage> {
                       letterSpacing: 2,
                     ),
                   ),
+
                   const SizedBox(height: 8),
+
                   Text(
                     'The World Is Your Arena.',
                     textAlign: TextAlign.center,
@@ -1233,7 +1254,9 @@ class _LoginPageState extends State<LoginPage> {
                       color: Colors.white.withOpacity(0.7),
                     ),
                   ),
+
                   const SizedBox(height: 35),
+
                   Text(
                     createAccount
                         ? 'Create your account'
@@ -1244,7 +1267,9 @@ class _LoginPageState extends State<LoginPage> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   TextField(
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -1258,7 +1283,9 @@ class _LoginPageState extends State<LoginPage> {
                       border: OutlineInputBorder(),
                     ),
                   ),
+
                   const SizedBox(height: 14),
+
                   TextField(
                     controller: passwordController,
                     obscureText: hidePassword,
@@ -1286,13 +1313,13 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   SizedBox(
                     height: 52,
                     child: FilledButton(
-                      onPressed: loading
-                          ? null
-                          : submitLogin,
+                      onPressed: loading ? null : submitLogin,
                       child: loading
                           ? const SizedBox(
                               width: 24,
@@ -1308,7 +1335,9 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                     ),
                   ),
+
                   const SizedBox(height: 14),
+
                   TextButton(
                     onPressed: loading
                         ? null
@@ -1323,15 +1352,15 @@ class _LoginPageState extends State<LoginPage> {
                           : 'Create a new account',
                     ),
                   ),
+
                   const SizedBox(height: 20),
+
                   const Card(
                     child: Padding(
                       padding: EdgeInsets.all(16),
                       child: Row(
                         children: [
-                          Icon(
-                            Icons.security,
-                          ),
+                          Icon(Icons.security),
                           SizedBox(width: 12),
                           Expanded(
                             child: Text(
