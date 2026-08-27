@@ -811,7 +811,6 @@ class DuelDetailPage extends StatelessWidget {
   },
   icon: const Icon(Icons.sports_score),
   label: const Text('Join Duel — Free'),
-),
           ),
         ],
       ),
