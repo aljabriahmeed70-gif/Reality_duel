@@ -56,7 +56,6 @@ class _RealityDuelAppState extends State<RealityDuelApp> {
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
       home: AppShell(
-        onLanguageChanged: changeLanguage,
       ),
     );
   }
