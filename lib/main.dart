@@ -1310,9 +1310,110 @@ class DuelDetailPage extends StatelessWidget {
 // ============================================================
 // PROOF
 // ============================================================
-
-class ProofPage extends StatelessWidget {
+class ProofPage extends StatefulWidget {
   const ProofPage({super.key});
+
+  @override
+  State<ProofPage> createState() => _ProofPageState();
+}
+
+class _ProofPageState extends State<ProofPage> {
+  String? selectedFileName;
+  bool uploading = false;
+  String? uploadedVideoUrl;
+
+  Future<void> pickAndUploadVideo() async {
+    final user = supabase.auth.currentUser;
+
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Please login before uploading a video.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.video,
+      withData: true,
+    );
+
+    if (result == null) return;
+
+    final file = result.files.single;
+
+    if (file.bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Could not read the selected video.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      selectedFileName = file.name;
+      uploading = true;
+      uploadedVideoUrl = null;
+    });
+
+    try {
+      final safeFileName = file.name.replaceAll(
+        RegExp(r'[^a-zA-Z0-9._-]'),
+        '_',
+      );
+
+      final filePath =
+          '${user.id}/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
+
+      await supabase.storage.from('videos').uploadBinary(
+            filePath,
+            file.bytes!,
+            fileOptions: const FileOptions(
+              upsert: false,
+              contentType: 'video/mp4',
+            ),
+          );
+
+      final publicUrl = supabase.storage
+          .from('videos')
+          .getPublicUrl(filePath);
+
+      if (!mounted) return;
+
+      setState(() {
+        uploadedVideoUrl = publicUrl;
+        uploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Video uploaded successfully.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        uploading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Video upload failed: $error',
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1335,18 +1436,55 @@ class ProofPage extends StatelessWidget {
             'Upload video or photos as evidence of your real-world challenge.',
           ),
           const SizedBox(height: 24),
+
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: uploading ? null : pickAndUploadVideo,
             icon: const Icon(Icons.videocam),
-            label: const Text('Add Video'),
+            label: Text(
+              uploading
+                  ? 'Uploading...'
+                  : 'Add Video',
+            ),
           ),
+
+          if (selectedFileName != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              'Selected: $selectedFileName',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+
+          if (uploading) ...[
+            const SizedBox(height: 16),
+            const LinearProgressIndicator(),
+          ],
+
+          if (uploadedVideoUrl != null) ...[
+            const SizedBox(height: 16),
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.check_circle),
+                title: Text('Video uploaded'),
+                subtitle: Text(
+                  'Your video is now stored in Supabase Storage.',
+                ),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 10),
+
           OutlinedButton.icon(
             onPressed: () {},
             icon: const Icon(Icons.photo_library),
             label: const Text('Add Photos'),
           ),
+
           const SizedBox(height: 20),
+
           const Card(
             child: ListTile(
               leading: Icon(Icons.security),
@@ -1356,17 +1494,21 @@ class ProofPage extends StatelessWidget {
               ),
             ),
           ),
+
           const SizedBox(height: 20),
+
           FilledButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Proof submitted for review.',
-                  ),
-                ),
-              );
-            },
+            onPressed: uploadedVideoUrl == null || uploading
+                ? null
+                : () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Proof submitted for review.',
+                        ),
+                      ),
+                    );
+                  },
             child: const Text('Submit Proof'),
           ),
         ],
@@ -1374,6 +1516,7 @@ class ProofPage extends StatelessWidget {
     );
   }
 }
+
 
 // ============================================================
 // TALENT MINI
