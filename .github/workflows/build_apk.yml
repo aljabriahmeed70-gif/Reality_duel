@@ -23,21 +23,38 @@ jobs:
         run: flutter pub get
 
       - name: Generate Android project
-        run: flutter create . --platforms=android
-      - name: Set Android compileSdk
+        run: flutter create . --platforms=android --android-language=kotlin
+      - name: Set Android compileSdk 36
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path("android/app/build.gradle.kts")
-          text = path.read_text()
+          for filename in [
+              "android/app/build.gradle",
+              "android/app/build.gradle.kts",
+          ]:
+              path = Path(filename)
 
-          text = text.replace(
-              "compileSdk = flutter.compileSdkVersion",
-              "compileSdk = 36"
-          )
+              if path.exists():
+                  text = path.read_text()
 
-          path.write_text(text)
+                  text = text.replace(
+                      "compileSdk = flutter.compileSdkVersion",
+                      "compileSdk = 36"
+                  )
+
+                  text = text.replace(
+                      "compileSdk flutter.compileSdkVersion",
+                      "compileSdk 36"
+                  )
+
+                  text = text.replace(
+                      "compileSdkVersion flutter.compileSdkVersion",
+                      "compileSdkVersion 36"
+                  )
+
+                  path.write_text(text)
+                  print(f"Updated {filename}")
           PY
       - name: Enable Internet
         run: |
