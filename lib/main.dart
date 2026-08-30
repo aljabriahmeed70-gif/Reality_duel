@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:video_player/video_player.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -263,6 +264,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       description:
           'The world is your arena. Join Reality Duel and let the world discover you.',
       icon: Icons.star,
+      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
     ),
     FeedVideo(
       username: 'Football Talent',
@@ -394,13 +396,14 @@ class FeedVideo {
   final String title;
   final String description;
   final IconData icon;
-
+  final String videoUrl;
   const FeedVideo({
-    required this.username,
-    required this.title,
-    required this.description,
-    required this.icon,
-  });
+  required this.username,
+  required this.title,
+  required this.description,
+  required this.icon,
+  required this.videoUrl,
+});
 }
 
 // ============================================================
