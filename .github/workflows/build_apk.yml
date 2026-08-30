@@ -13,22 +13,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Install Android 36
+        run: |
+          sdkmanager "platforms;android-36"
+          yes | sdkmanager --licenses || true
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Generate Android project
         run: flutter create . --platforms=android --android-language=kotlin
-      - name: Set Android SDK 36
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
 
+      - name: Set compileSdk to 36
+        run: |
           python3 - <<'PY'
           from pathlib import Path
 
@@ -36,42 +42,26 @@ jobs:
               if path.is_file() and path.suffix in [".gradle", ".kts"]:
                   text = path.read_text()
 
-                  text = text.replace(
-                      "compileSdk = 34",
-                      "compileSdk = 36"
-                  )
+                  replacements = {
+                      "compileSdk = 34": "compileSdk = 36",
+                      "compileSdk 34": "compileSdk 36",
+                      "compileSdkVersion 34": "compileSdkVersion 36",
+                      "compileSdk = flutter.compileSdkVersion": "compileSdk = 36",
+                      "compileSdk flutter.compileSdkVersion": "compileSdk 36",
+                  }
 
-                  text = text.replace(
-                      "compileSdk 34",
-                      "compileSdk 36"
-                  )
-
-                  text = text.replace(
-                      "compileSdkVersion 34",
-                      "compileSdkVersion 36"
-                  )
-
-                  text = text.replace(
-                      "compileSdk = flutter.compileSdkVersion",
-                      "compileSdk = 36"
-                  )
-
-                  text = text.replace(
-                      "compileSdk flutter.compileSdkVersion",
-                      "compileSdk 36"
-                  )
+                  for old, new in replacements.items():
+                      text = text.replace(old, new)
 
                   path.write_text(text)
                   print("Checked:", path)
           PY
- 
-            - name: Verify compileSdk
-          run: |
+
+      - name: Verify compileSdk
+        run: |
           echo "Android compileSdk settings:"
           grep -Rni "compileSdk" android || true
-      - name: Verify Android compileSdk
-        run: |
-          grep -R "compileSdk" android/app/
+
       - name: Enable Internet
         run: |
           python3 - <<'PY'
