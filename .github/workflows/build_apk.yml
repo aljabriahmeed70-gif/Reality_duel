@@ -64,10 +64,10 @@ jobs:
                   print("Checked:", path)
           PY
  
-      - name: Verify compileSdk
-        run: |
-          echo "Android compileSdk settings:"    
-       grep -Rni "compileSdk" android || true
+            - name: Verify compileSdk
+          run: |
+          echo "Android compileSdk settings:"
+          grep -Rni "compileSdk" android || true
       - name: Verify Android compileSdk
         run: |
           grep -R "compileSdk" android/app/
