@@ -24,53 +24,53 @@ jobs:
 
       - name: Generate Android project
         run: flutter create . --platforms=android --android-language=kotlin
-      - name: Set Android compileSdk 36
+      - name: Set Android SDK 36
         run: |
+          sdkmanager "platforms;android-36"
+
           python3 - <<'PY'
           from pathlib import Path
 
-          files = [
-              Path("android/app/build.gradle"),
-              Path("android/app/build.gradle.kts"),
-          ]
-
-          found = False
-
-          for path in files:
-              if path.exists():
-                  found = True
+          for path in Path("android").rglob("*"):
+              if path.is_file() and path.suffix in [".gradle", ".kts"]:
                   text = path.read_text()
 
-                  import re
+                  text = text.replace(
+                      "compileSdk = 34",
+                      "compileSdk = 36"
+                  )
 
-                  text = re.sub(
-                      r'compileSdk(?:Version)?\s*[= ]\s*(?:flutter\.compileSdkVersion|34)',
-                      lambda m: (
-                          "compileSdk = 36"
-                          if "=" in m.group(0)
-                          else "compileSdk 36"
-                      ),
-                      text
+                  text = text.replace(
+                      "compileSdk 34",
+                      "compileSdk 36"
+                  )
+
+                  text = text.replace(
+                      "compileSdkVersion 34",
+                      "compileSdkVersion 36"
+                  )
+
+                  text = text.replace(
+                      "compileSdk = flutter.compileSdkVersion",
+                      "compileSdk = 36"
+                  )
+
+                  text = text.replace(
+                      "compileSdk flutter.compileSdkVersion",
+                      "compileSdk 36"
                   )
 
                   path.write_text(text)
-
-                  print("Updated:", path)
-                  print(
-                      "compileSdk lines:",
-                      [
-                          line.strip()
-                          for line in text.splitlines()
-                          if "compileSdk" in line
-                      ]
-                  )
-
-          if not found:
-              raise SystemExit("ERROR: Android app Gradle file not found")
+                  print("Checked:", path)
           PY
+ 
+      - name: Verify compileSdk
+        run: |
+          echo "Android compileSdk settings:"    
+       grep -Rni "compileSdk" android || true
       - name: Verify Android compileSdk
         run: |
-         grep -R "compileSdk" android/app/
+          grep -R "compileSdk" android/app/
       - name: Enable Internet
         run: |
           python3 - <<'PY'
