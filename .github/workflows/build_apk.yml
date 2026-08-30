@@ -22,45 +22,83 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v4
 
-      - name: Install Android 36
+      - name: Install Android SDK 36
         run: |
           sdkmanager "platforms;android-36"
+          sdkmanager "build-tools;36.0.0"
           yes | sdkmanager --licenses || true
+
+      - name: Generate Android project
+        run: |
+          flutter create . \
+            --platforms=android \
+            --android-language=kotlin
 
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate Android project
-        run: flutter create . --platforms=android --android-language=kotlin
-
-      - name: Set compileSdk to 36
+      - name: Force compileSdk 36
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
-          for path in Path("android").rglob("*"):
-              if path.is_file() and path.suffix in [".gradle", ".kts"]:
-                  text = path.read_text()
+          roots = [
+              Path("android"),
+              Path.home() / ".pub-cache" / "hosted" / "pub.dev",
+          ]
 
-                  replacements = {
-                      "compileSdk = 34": "compileSdk = 36",
-                      "compileSdk 34": "compileSdk 36",
-                      "compileSdkVersion 34": "compileSdkVersion 36",
-                      "compileSdk = flutter.compileSdkVersion": "compileSdk = 36",
-                      "compileSdk flutter.compileSdkVersion": "compileSdk 36",
-                  }
+          replacements = {
+              "compileSdk = 34": "compileSdk = 36",
+              "compileSdk 34": "compileSdk 36",
+              "compileSdkVersion 34": "compileSdkVersion 36",
+              "compileSdk = flutter.compileSdkVersion": "compileSdk = 36",
+              "compileSdk flutter.compileSdkVersion": "compileSdk 36",
+              "compileSdkVersion flutter.compileSdkVersion": "compileSdkVersion 36",
+          }
+
+          for root in roots:
+              if not root.exists():
+                  continue
+
+              for path in root.rglob("*"):
+                  if not path.is_file():
+                      continue
+
+                  if path.suffix not in [".gradle", ".kts"]:
+                      continue
+
+                  try:
+                      text = path.read_text()
+                  except Exception:
+                      continue
+
+                  original = text
 
                   for old, new in replacements.items():
                       text = text.replace(old, new)
 
-                  path.write_text(text)
-                  print("Checked:", path)
+                  if text != original:
+                      path.write_text(text)
+                      print("Updated:", path)
+
           PY
 
       - name: Verify compileSdk
         run: |
-          echo "Android compileSdk settings:"
+          echo "=== Android project ==="
           grep -Rni "compileSdk" android || true
+
+          echo ""
+          echo "=== file_picker ==="
+          find "$HOME/.pub-cache/hosted/pub.dev" \
+            -maxdepth 1 \
+            -type d \
+            -name "file_picker-*" \
+            -print
+
+          grep -Rni "compileSdk" \
+            "$HOME/.pub-cache/hosted/pub.dev/file_picker-"* \
+            2>/dev/null || true
 
       - name: Enable Internet
         run: |
@@ -68,17 +106,19 @@ jobs:
           from pathlib import Path
 
           path = Path("android/app/src/main/AndroidManifest.xml")
-          text = path.read_text()
 
-          permission = '<uses-permission android:name="android.permission.INTERNET"/>'
+          if path.exists():
+              text = path.read_text()
 
-          if permission not in text:
-              text = text.replace(
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
-                  '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    ' + permission
-              )
+              permission = '<uses-permission android:name="android.permission.INTERNET"/>'
 
-          path.write_text(text)
+              if permission not in text:
+                  text = text.replace(
+                      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">',
+                      '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n    ' + permission
+                  )
+
+                  path.write_text(text)
           PY
 
       - name: Build APK
