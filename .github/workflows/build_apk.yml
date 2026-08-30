@@ -26,7 +26,8 @@ jobs:
         run: flutter create . --platforms=android --android-language=kotlin
       - name: Set Android SDK 36
         run: |
-          sdkmanager "platforms;android-36"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36"
 
           python3 - <<'PY'
           from pathlib import Path
