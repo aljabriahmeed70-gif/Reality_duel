@@ -251,6 +251,241 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     loadVideos();
   }
 
+  Future<void> loadVideos() async {
+    if (!mounted) return;
+
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final files = await Supabase.instance.client.storage
+          .from('videos')
+          .list();
+
+      final List<FeedVideo> loadedVideos = [];
+
+      for (final file in files) {
+        final fileName = file.name;
+
+        // تجاهل المجلدات
+        if (fileName.isEmpty || fileName.endsWith('/')) {
+          continue;
+        }
+
+        // قبول ملفات الفيديو فقط
+        final lowerName = fileName.toLowerCase();
+
+        if (!lowerName.endsWith('.mp4') &&
+            !lowerName.endsWith('.mov') &&
+            !lowerName.endsWith('.m4v') &&
+            !lowerName.endsWith('.webm')) {
+          continue;
+        }
+
+        final videoUrl = Supabase.instance.client.storage
+            .from('videos')
+            .getPublicUrl(fileName);
+
+        loadedVideos.add(
+          FeedVideo(
+            id: fileName,
+            videoUrl: videoUrl,
+            username: 'Reality Duel',
+            description: '',
+          ),
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        videos = loadedVideos;
+        loading = false;
+        errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+        errorMessage = e.toString();
+      });
+    }
+  }
+
+  void requireLogin(
+    BuildContext context, {
+    required String action,
+  }) {
+    final user = Supabase.instance.client.auth.currentUser;
+
+    if (user != null) {
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Login required'),
+          content: Text(
+            'Please login to $action.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('Login'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 60,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Unable to load videos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: loadVideos,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (videos.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: loadVideos,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 220),
+            Icon(
+              Icons.video_library_outlined,
+              size: 70,
+            ),
+            SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No videos available yet.',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Upload a video to Supabase Storage.',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return PageView.builder(
+      controller: pageController,
+      scrollDirection: Axis.vertical,
+      itemCount: videos.length,
+      itemBuilder: (context, index) {
+        final video = videos[index];
+
+        return VideoFeedItem(
+          video: video,
+          onLike: () {
+            requireLogin(
+              context,
+              action: 'like this video',
+            );
+          },
+          onComment: () {
+            requireLogin(
+              context,
+              action: 'comment on this video',
+            );
+          },
+          onFollow: () {
+            requireLogin(
+              context,
+              action: 'follow this talent',
+            );
+          },
+          onShare: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Share feature coming soon.',
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    pageController.dispose();
+    super.dispose();
+  }
+}
+
   // ----------------------------------------------------------
   // LOAD REAL VIDEOS FROM SUPABASE STORAGE
   // ----------------------------------------------------------
