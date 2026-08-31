@@ -256,98 +256,97 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   // ----------------------------------------------------------
 
   Future<void> loadVideos() async {
-    if (mounted) {
-      setState(() {
-        loading = true;
-        errorMessage = null;
-      });
-    }
-
-    try {
-      final paths = await _findVideoFiles('videos');
-
-      final loadedVideos = <FeedVideo>[];
-
-      for (final path in paths) {
-        final lower = path.toLowerCase();
-
-        if (!lower.endsWith('.mp4') &&
-            !lower.endsWith('.mov') &&
-            !lower.endsWith('.m4v') &&
-            !lower.endsWith('.webm') &&
-            !lower.endsWith('.avi')) {
-          continue;
-        }
-
-        final publicUrl = supabase.storage
-            .from('videos')
-            .getPublicUrl(path);
-
-        loadedVideos.add(
-          FeedVideo(
-            username: 'Reality Talent',
-            title: 'Real Talent Video',
-            description:
-                'A real video uploaded to Reality Duel.',
-            icon: Icons.play_circle_fill,
-            videoUrl: publicUrl,
-          ),
-        );
-      }
-
-      if (!mounted) return;
-
-      setState(() {
-        videos = loadedVideos;
-        loading = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        loading = false;
-        errorMessage = error.toString();
-      });
-    }
+  if (mounted) {
+    setState(() {
+      loading = true;
+      errorMessage = null;
+    });
   }
 
-  // ----------------------------------------------------------
-  // RECURSIVELY FIND FILES INSIDE VIDEOS BUCKET
-  // ----------------------------------------------------------
+  try {
+    // Search from the ROOT of the videos bucket.
+    final paths = await _findVideoFiles('');
 
-  Future<List<String>> _findVideoFiles(String folder) async {
-    final results = <String>[];
+    final loadedVideos = <FeedVideo>[];
 
-    final items = await supabase.storage.from('videos').list(
-          path: folder,
-          searchOptions: const SearchOptions(
-            limit: 100,
-          ),
-        );
+    for (final path in paths) {
+      final lower = path.toLowerCase();
 
-    for (final item in items) {
-      final itemName = item.name;
-
-      if (itemName.isEmpty) {
+      if (!lower.endsWith('.mp4') &&
+          !lower.endsWith('.mov') &&
+          !lower.endsWith('.m4v') &&
+          !lower.endsWith('.webm') &&
+          !lower.endsWith('.avi')) {
         continue;
       }
 
-      final fullPath = folder.isEmpty
-          ? itemName
-          : '$folder/$itemName';
+      final publicUrl = supabase.storage
+          .from('videos')
+          .getPublicUrl(path);
 
-      // Files normally have an id.
-      // Folders returned by Supabase Storage normally have no id.
-      if (item.id != null) {
-        results.add(fullPath);
-      } else {
-        final nestedFiles = await _findVideoFiles(fullPath);
-        results.addAll(nestedFiles);
-      }
+      loadedVideos.add(
+        FeedVideo(
+          username: 'Reality Talent',
+          title: 'Real Talent Video',
+          description:
+              'A real video uploaded to Reality Duel.',
+          icon: Icons.play_circle_fill,
+          videoUrl: publicUrl,
+        ),
+      );
     }
 
-    return results;
+    if (!mounted) return;
+
+    setState(() {
+      videos = loadedVideos;
+      loading = false;
+    });
+  } catch (error) {
+    if (!mounted) return;
+
+    setState(() {
+      loading = false;
+      errorMessage = error.toString();
+    });
   }
+}
+
+// ----------------------------------------------------------
+// FIND FILES INSIDE VIDEOS BUCKET
+// ----------------------------------------------------------
+
+Future<List<String>> _findVideoFiles(String folder) async {
+  final results = <String>[];
+
+  final items = await supabase.storage.from('videos').list(
+        path: folder,
+        searchOptions: const SearchOptions(
+          limit: 100,
+        ),
+      );
+
+  for (final item in items) {
+    final itemName = item.name.trim();
+
+    if (itemName.isEmpty) {
+      continue;
+    }
+
+    final fullPath = folder.isEmpty
+        ? itemName
+        : '$folder/$itemName';
+
+    if (item.id != null) {
+      results.add(fullPath);
+    } else {
+      final nestedFiles = await _findVideoFiles(fullPath);
+      results.addAll(nestedFiles);
+    }
+  }
+
+  return results;
+}
 
   // ----------------------------------------------------------
   // LOGIN REQUIREMENT FOR INTERACTIONS
