@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -57,15 +58,26 @@ class _RealityDuelAppState extends State<RealityDuelApp> {
         scaffoldBackgroundColor: const Color(0xFF0B0B12),
       ),
       home: AppShell(
+        selectedLanguage: selectedLanguage,
+        onLanguageChanged: changeLanguage,
       ),
     );
   }
 }
+
 // ============================================================
 // APP SHELL
 // ============================================================
+
 class AppShell extends StatefulWidget {
-  const AppShell({super.key});
+  final String selectedLanguage;
+  final ValueChanged<String> onLanguageChanged;
+
+  const AppShell({
+    super.key,
+    required this.selectedLanguage,
+    required this.onLanguageChanged,
+  });
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -74,56 +86,49 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int currentIndex = 0;
 
-  final List<Widget> pages = const [
-    VideoFeedPage(),
-    DuelsPage(),
-    DiscoverPage(),
-    OpportunitiesPage(),
-    TalentProfilePage(),
-  ];
-
   @override
   Widget build(BuildContext context) {
+    final pages = const [
+      VideoFeedPage(),
+      DuelsPage(),
+      DiscoverPage(),
+      OpportunitiesPage(),
+      TalentProfilePage(),
+    ];
+
     return Scaffold(
       body: IndexedStack(
         index: currentIndex,
         children: pages,
       ),
-
       bottomNavigationBar: NavigationBar(
         selectedIndex: currentIndex,
-
         onDestinationSelected: (index) {
           setState(() {
             currentIndex = index;
           });
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.play_arrow_outlined),
             selectedIcon: Icon(Icons.play_arrow),
             label: 'Feed',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.sports_martial_arts_outlined),
             selectedIcon: Icon(Icons.sports_martial_arts),
             label: 'Duels',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.search),
             selectedIcon: Icon(Icons.search),
             label: 'Talent',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.work_outline),
             selectedIcon: Icon(Icons.work),
             label: 'Opportunities',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
@@ -131,14 +136,12 @@ class _AppShellState extends State<AppShell> {
           ),
         ],
       ),
-
-      // 🌐 زر اللغات — يظهر بشكل واضح أعلى التطبيق
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           showModalBottomSheet(
             context: context,
             showDragHandle: true,
-            builder: (context) {
+            builder: (sheetContext) {
               return SafeArea(
                 child: ListView(
                   shrinkWrap: true,
@@ -152,80 +155,41 @@ class _AppShellState extends State<AppShell> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 8),
-
                     const Text(
                       'Choose your language',
                       textAlign: TextAlign.center,
                     ),
-
                     const SizedBox(height: 20),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇬🇧',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('English'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇬🇧',
+                      'English',
                     ),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇸🇦',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('العربية'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇸🇦',
+                      'العربية',
                     ),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇪🇸',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('Español'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇪🇸',
+                      'Español',
                     ),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇫🇷',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('Français'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇫🇷',
+                      'Français',
                     ),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇹🇷',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('Türkçe'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇹🇷',
+                      'Türkçe',
                     ),
-
-                    ListTile(
-                      leading: const Text(
-                        '🇨🇳',
-                        style: TextStyle(fontSize: 28),
-                      ),
-                      title: const Text('中文'),
-                      onTap: () {
-                        Navigator.pop(context);
-                      },
+                    _languageTile(
+                      sheetContext,
+                      '🇨🇳',
+                      '中文',
                     ),
                   ],
                 ),
@@ -236,15 +200,35 @@ class _AppShellState extends State<AppShell> {
         icon: const Icon(Icons.language),
         label: const Text('Language'),
       ),
-
       floatingActionButtonLocation:
           FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  Widget _languageTile(
+    BuildContext context,
+    String flag,
+    String language,
+  ) {
+    return ListTile(
+      leading: Text(
+        flag,
+        style: const TextStyle(fontSize: 28),
+      ),
+      title: Text(language),
+      trailing: widget.selectedLanguage == language
+          ? const Icon(Icons.check)
+          : null,
+      onTap: () {
+        widget.onLanguageChanged(language);
+        Navigator.pop(context);
+      },
     );
   }
 }
 
 // ============================================================
-// VIDEO FEED
+// REAL VIDEO FEED
 // ============================================================
 
 class VideoFeedPage extends StatefulWidget {
@@ -257,46 +241,117 @@ class VideoFeedPage extends StatefulWidget {
 class _VideoFeedPageState extends State<VideoFeedPage> {
   final PageController pageController = PageController();
 
-  final List<FeedVideo> videos = const [
-    FeedVideo(
-      username: 'Reality Talent',
-      title: 'Show your talent. Prove it.',
-      description:
-          'The world is your arena. Join Reality Duel and let the world discover you.',
-      icon: Icons.star,
-      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
-    ),
-    FeedVideo(
-      username: 'Football Talent',
-      title: 'Street Football Challenge',
-      description:
-          'Skills, creativity and execution. Who would win this Duel?',
-      icon: Icons.sports_soccer,
-      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
-    ),
-    FeedVideo(
-      username: 'Creative Talent',
-      title: '60 Second Creative Challenge',
-      description:
-          'You have 60 seconds. Show the world what you can create.',
-     icon: Icons.auto_awesome,
-     videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
-    ),
-    FeedVideo(
-      username: 'Future Talent',
-      title: 'Your talent can open doors.',
-      description:
-          'Build proof, get discovered and find opportunities through Reality Duel.',
-      icon: Icons.public,
-      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
-     ),
-  ];
+  List<FeedVideo> videos = [];
+  bool loading = true;
+  String? errorMessage;
 
   @override
-  void dispose() {
-    pageController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    loadVideos();
   }
+
+  // ----------------------------------------------------------
+  // LOAD REAL VIDEOS FROM SUPABASE STORAGE
+  // ----------------------------------------------------------
+
+  Future<void> loadVideos() async {
+    if (mounted) {
+      setState(() {
+        loading = true;
+        errorMessage = null;
+      });
+    }
+
+    try {
+      final paths = await _findVideoFiles('videos');
+
+      final loadedVideos = <FeedVideo>[];
+
+      for (final path in paths) {
+        final lower = path.toLowerCase();
+
+        if (!lower.endsWith('.mp4') &&
+            !lower.endsWith('.mov') &&
+            !lower.endsWith('.m4v') &&
+            !lower.endsWith('.webm') &&
+            !lower.endsWith('.avi')) {
+          continue;
+        }
+
+        final publicUrl = supabase.storage
+            .from('videos')
+            .getPublicUrl(path);
+
+        loadedVideos.add(
+          FeedVideo(
+            username: 'Reality Talent',
+            title: 'Real Talent Video',
+            description:
+                'A real video uploaded to Reality Duel.',
+            icon: Icons.play_circle_fill,
+            videoUrl: publicUrl,
+          ),
+        );
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        videos = loadedVideos;
+        loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+        errorMessage = error.toString();
+      });
+    }
+  }
+
+  // ----------------------------------------------------------
+  // RECURSIVELY FIND FILES INSIDE VIDEOS BUCKET
+  // ----------------------------------------------------------
+
+  Future<List<String>> _findVideoFiles(String folder) async {
+    final results = <String>[];
+
+    final items = await supabase.storage.from('videos').list(
+          path: folder,
+          searchOptions: const SearchOptions(
+            limit: 100,
+          ),
+        );
+
+    for (final item in items) {
+      final itemName = item.name;
+
+      if (itemName.isEmpty) {
+        continue;
+      }
+
+      final fullPath = folder.isEmpty
+          ? itemName
+          : '$folder/$itemName';
+
+      // Files normally have an id.
+      // Folders returned by Supabase Storage normally have no id.
+      if (item.id != null) {
+        results.add(fullPath);
+      } else {
+        final nestedFiles = await _findVideoFiles(fullPath);
+        results.addAll(nestedFiles);
+      }
+    }
+
+    return results;
+  }
+
+  // ----------------------------------------------------------
+  // LOGIN REQUIREMENT FOR INTERACTIONS
+  // ----------------------------------------------------------
 
   Future<void> requireLogin(
     BuildContext context, {
@@ -315,7 +370,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
 
     await showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Login required'),
           content: Text(
@@ -325,13 +380,13 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
               },
               child: const Text('Cancel'),
             ),
             FilledButton(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(dialogContext);
 
                 Navigator.push(
                   context,
@@ -348,8 +403,89 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     );
   }
 
+  // ----------------------------------------------------------
+  // BUILD REAL FEED
+  // ----------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 60,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Unable to load videos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                maxLines: 5,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: loadVideos,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Try Again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (videos.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: loadVideos,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [
+            SizedBox(height: 220),
+            Icon(
+              Icons.video_library_outlined,
+              size: 70,
+            ),
+            SizedBox(height: 20),
+            Center(
+              child: Text(
+                'No videos available yet.',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            SizedBox(height: 8),
+            Center(
+              child: Text(
+                'Upload a video to Supabase Storage.',
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return PageView.builder(
       controller: pageController,
       scrollDirection: Axis.vertical,
@@ -380,13 +516,21 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
           onShare: () {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Share feature coming soon.'),
+                content: Text(
+                  'Share feature coming soon.',
+                ),
               ),
             );
           },
         );
       },
     );
+  }
+
+  @override
+  void dispose() {
+    pageController.dispose();
+    super.dispose();
   }
 }
 
@@ -400,13 +544,14 @@ class FeedVideo {
   final String description;
   final IconData icon;
   final String videoUrl;
+
   const FeedVideo({
-  required this.username,
-  required this.title,
-  required this.description,
-  required this.icon,
-  required this.videoUrl,
-});
+    required this.username,
+    required this.title,
+    required this.description,
+    required this.icon,
+    required this.videoUrl,
+  });
 }
 
 // ============================================================
@@ -458,13 +603,11 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
     }
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   void _togglePlayPause() {
+    if (!_controller.value.isInitialized) {
+      return;
+    }
+
     if (_controller.value.isPlaying) {
       _controller.pause();
     } else {
@@ -475,12 +618,18 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
         // ------------------------------------------------------
-        // REAL VIDEO
+        // REAL NETWORK VIDEO
         // ------------------------------------------------------
 
         FutureBuilder<void>(
@@ -490,10 +639,14 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
                 _controller.value.isInitialized) {
               return GestureDetector(
                 onTap: _togglePlayPause,
-                child: Center(
-                  child: AspectRatio(
-                    aspectRatio: _controller.value.aspectRatio,
-                    child: VideoPlayer(_controller),
+                child: SizedBox.expand(
+                  child: FittedBox(
+                    fit: BoxFit.cover,
+                    child: SizedBox(
+                      width: _controller.value.size.width,
+                      height: _controller.value.size.height,
+                      child: VideoPlayer(_controller),
+                    ),
                   ),
                 ),
               );
@@ -501,11 +654,16 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
 
             if (snapshot.hasError) {
               return const Center(
-                child: Text(
-                  'Unable to load video',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Unable to load video',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               );
@@ -518,7 +676,7 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
         ),
 
         // ------------------------------------------------------
-        // DARK GRADIENT OVERLAY
+        // DARK GRADIENT
         // ------------------------------------------------------
 
         IgnorePointer(
@@ -528,9 +686,9 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Colors.black.withValues(alpha: 0.15),
+                  Colors.black.withOpacity(0.15),
                   Colors.transparent,
-                  Colors.black.withValues(alpha: 0.65),
+                  Colors.black.withOpacity(0.70),
                 ],
               ),
             ),
@@ -538,7 +696,7 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
         ),
 
         // ------------------------------------------------------
-        // TOP BRANDING
+        // TOP BRAND
         // ------------------------------------------------------
 
         const Positioned(
@@ -645,7 +803,7 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
         ),
 
         // ------------------------------------------------------
-        // PLAY / PAUSE BUTTON
+        // PLAY / PAUSE
         // ------------------------------------------------------
 
         if (_controller.value.isInitialized)
@@ -663,254 +821,6 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
               ),
             ),
           ),
-      ],
-    );
-  }
-}
-        // ------------------------------------------------------
-        // VIDEO PLACEHOLDER
-        // ------------------------------------------------------
-
-        Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF151522),
-                Color(0xFF26184A),
-                Color(0xFF09090F),
-              ],
-            ),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  video.icon,
-                  size: 100,
-                  color: Colors.white,
-                ),
-                const SizedBox(height: 20),
-                const Icon(
-                  Icons.play_circle_fill,
-                  size: 72,
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'VIDEO',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ------------------------------------------------------
-        // TOP BAR
-        // ------------------------------------------------------
-
-        SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-              child: Row(
-                children: [
-                  const Text(
-                    'REALITY DUEL',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.search,
-                      size: 28,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // ------------------------------------------------------
-        // RIGHT ACTIONS
-        // ------------------------------------------------------
-
-        Positioned(
-          right: 10,
-          bottom: 100,
-          child: Column(
-            children: [
-              const CircleAvatar(
-                radius: 27,
-                child: Icon(
-                  Icons.person,
-                  size: 30,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              _FeedAction(
-                icon: Icons.favorite_border,
-                label: 'Like',
-                onTap: onLike,
-              ),
-
-              const SizedBox(height: 18),
-
-              _FeedAction(
-                icon: Icons.comment_outlined,
-                label: 'Comment',
-                onTap: onComment,
-              ),
-
-              const SizedBox(height: 18),
-
-              _FeedAction(
-                icon: Icons.share_outlined,
-                label: 'Share',
-                onTap: onShare,
-              ),
-
-              const SizedBox(height: 18),
-
-              _FeedAction(
-                icon: Icons.person_add_alt_1,
-                label: 'Follow',
-                onTap: onFollow,
-              ),
-            ],
-          ),
-        ),
-
-        // ------------------------------------------------------
-        // BOTTOM INFORMATION
-        // ------------------------------------------------------
-
-        Positioned(
-          left: 16,
-          right: 80,
-          bottom: 105,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const CircleAvatar(
-                    radius: 20,
-                    child: Icon(
-                      Icons.person,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    '@${video.username}',
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                video.title,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 7),
-              Text(
-                video.description,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.85),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  const Icon(
-                    Icons.emoji_events_outlined,
-                    size: 19,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Reality Duel Challenge',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-// ============================================================
-// FEED ACTION
-// ============================================================
-
-class _FeedAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _FeedAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Material(
-          color: Colors.black.withOpacity(0.35),
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Icon(
-                icon,
-                size: 28,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
       ],
     );
   }
@@ -960,7 +870,7 @@ class DuelsPage extends StatelessWidget {
             if (user == null) {
               showDialog(
                 context: context,
-                builder: (context) {
+                builder: (dialogContext) {
                   return AlertDialog(
                     title: const Text('Create a Duel'),
                     content: const Text(
@@ -969,13 +879,13 @@ class DuelsPage extends StatelessWidget {
                     actions: [
                       TextButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.pop(dialogContext);
                         },
                         child: const Text('Cancel'),
                       ),
                       FilledButton(
                         onPressed: () {
-                          Navigator.pop(context);
+                          Navigator.pop(dialogContext);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -1121,7 +1031,7 @@ class TalentProfilePage extends StatelessWidget {
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
-        builder: (_) => const AppShell(),
+        builder: (_) => const LoginPage(),
       ),
       (route) => false,
     );
@@ -1312,14 +1222,12 @@ class _CreateDuelPageState extends State<CreateDuelPage> {
               'Country vs Country',
               'Company vs Everyone',
               'Global Open',
-            ].map(
-              (item) {
-                return DropdownMenuItem<String>(
-                  value: item,
-                  child: Text(item),
-                );
-              },
-            ).toList(),
+            ].map((item) {
+              return DropdownMenuItem<String>(
+                value: item,
+                child: Text(item),
+              );
+            }).toList(),
             onChanged: (value) {
               if (value == null) return;
 
@@ -1495,7 +1403,7 @@ class DuelDetailPage extends StatelessWidget {
               if (user == null) {
                 showDialog(
                   context: context,
-                  builder: (context) {
+                  builder: (dialogContext) {
                     return AlertDialog(
                       title: const Text('Join Reality Duel'),
                       content: const Text(
@@ -1504,13 +1412,13 @@ class DuelDetailPage extends StatelessWidget {
                       actions: [
                         TextButton(
                           onPressed: () {
-                            Navigator.pop(context);
+                            Navigator.pop(dialogContext);
                           },
                           child: const Text('Cancel'),
                         ),
                         FilledButton(
                           onPressed: () {
-                            Navigator.pop(context);
+                            Navigator.pop(dialogContext);
 
                             Navigator.push(
                               context,
@@ -1549,6 +1457,7 @@ class DuelDetailPage extends StatelessWidget {
 // ============================================================
 // PROOF
 // ============================================================
+
 class ProofPage extends StatefulWidget {
   const ProofPage({super.key});
 
@@ -1611,13 +1520,13 @@ class _ProofPageState extends State<ProofPage> {
           '${user.id}/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
 
       await supabase.storage.from('videos').uploadBinary(
-            filePath,
-            file.bytes!,
-            fileOptions: const FileOptions(
-              upsert: false,
-              contentType: 'video/mp4',
-            ),
-          );
+        filePath,
+        file.bytes!,
+        fileOptions: FileOptions(
+          upsert: false,
+          contentType: 'video/mp4',
+        ),
+      );
 
       final publicUrl = supabase.storage
           .from('videos')
@@ -1675,17 +1584,13 @@ class _ProofPageState extends State<ProofPage> {
             'Upload video or photos as evidence of your real-world challenge.',
           ),
           const SizedBox(height: 24),
-
           OutlinedButton.icon(
             onPressed: uploading ? null : pickAndUploadVideo,
             icon: const Icon(Icons.videocam),
             label: Text(
-              uploading
-                  ? 'Uploading...'
-                  : 'Add Video',
+              uploading ? 'Uploading...' : 'Add Video',
             ),
           ),
-
           if (selectedFileName != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -1695,12 +1600,10 @@ class _ProofPageState extends State<ProofPage> {
               ),
             ),
           ],
-
           if (uploading) ...[
             const SizedBox(height: 16),
             const LinearProgressIndicator(),
           ],
-
           if (uploadedVideoUrl != null) ...[
             const SizedBox(height: 16),
             const Card(
@@ -1713,17 +1616,13 @@ class _ProofPageState extends State<ProofPage> {
               ),
             ),
           ],
-
           const SizedBox(height: 10),
-
           OutlinedButton.icon(
             onPressed: () {},
             icon: const Icon(Icons.photo_library),
             label: const Text('Add Photos'),
           ),
-
           const SizedBox(height: 20),
-
           const Card(
             child: ListTile(
               leading: Icon(Icons.security),
@@ -1733,9 +1632,7 @@ class _ProofPageState extends State<ProofPage> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
           FilledButton(
             onPressed: uploadedVideoUrl == null || uploading
                 ? null
@@ -1755,7 +1652,6 @@ class _ProofPageState extends State<ProofPage> {
     );
   }
 }
-
 
 // ============================================================
 // TALENT MINI
@@ -2006,25 +1902,6 @@ class SectionTitle extends StatelessWidget {
 }
 
 // ============================================================
-// AUTH GATE
-// ============================================================
-
-class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final session = supabase.auth.currentSession;
-
-    if (session != null) {
-      return const AppShell();
-    }
-
-    return const LoginPage();
-  }
-}
-
-// ============================================================
 // LOGIN PAGE
 // ============================================================
 
@@ -2096,7 +1973,10 @@ class _LoginPageState extends State<LoginPage> {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (_) => const AppShell(),
+              builder: (_) => const AppShell(
+                selectedLanguage: 'English',
+                onLanguageChanged: _dummyLanguageChanged,
+              ),
             ),
             (route) => false,
           );
@@ -2112,7 +1992,10 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
-            builder: (_) => const AppShell(),
+            builder: (_) => const AppShell(
+              selectedLanguage: 'English',
+              onLanguageChanged: _dummyLanguageChanged,
+            ),
           ),
           (route) => false,
         );
@@ -2309,3 +2192,9 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 }
+
+// ============================================================
+// DUMMY LANGUAGE CALLBACK
+// ============================================================
+
+void _dummyLanguageChanged(String language) {}
