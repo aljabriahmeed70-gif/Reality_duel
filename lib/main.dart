@@ -255,7 +255,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   // LOAD REAL VIDEO FROM SUPABASE STORAGE
   // ----------------------------------------------------------
 
-  Future<void> loadVideos() async {
+ Future<void> loadVideos() async {
   if (!mounted) return;
 
   setState(() {
@@ -264,51 +264,21 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   });
 
   try {
-    final files = await supabase.storage
+    const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
+
+    final publicUrl = supabase.storage
         .from('videos')
-        .list(
-          path: '',
-          searchOptions: const SearchOptions(
-            limit: 100,
-          ),
-        );
+        .getPublicUrl(videoPath);
 
-    final loadedVideos = <FeedVideo>[];
-
-    for (final file in files) {
-      final fileName = file.name.trim();
-
-      if (fileName.isEmpty) {
-        continue;
-      }
-
-      final lowerName = fileName.toLowerCase();
-
-      final isVideo =
-          lowerName.endsWith('.mp4') ||
-          lowerName.endsWith('.mov') ||
-          lowerName.endsWith('.m4v') ||
-          lowerName.endsWith('.webm') ||
-          lowerName.endsWith('.avi');
-
-      if (!isVideo) {
-        continue;
-      }
-
-      final publicUrl = supabase.storage
-          .from('videos')
-          .getPublicUrl(fileName);
-
-      loadedVideos.add(
-        FeedVideo(
-          username: 'Reality Talent',
-          title: 'Reality Duel Video',
-          description: 'A video uploaded to Reality Duel.',
-          icon: Icons.play_circle_fill,
-          videoUrl: publicUrl,
-        ),
-      );
-    }
+    final loadedVideos = <FeedVideo>[
+      FeedVideo(
+        username: 'Reality Talent',
+        title: 'Real Talent Video',
+        description: 'A real video uploaded to Reality Duel.',
+        icon: Icons.play_circle_fill,
+        videoUrl: publicUrl,
+      ),
+    ];
 
     if (!mounted) return;
 
@@ -325,7 +295,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       errorMessage = error.toString();
     });
   }
-  }
+ }
   // ----------------------------------------------------------
   // LOGIN REQUIREMENT FOR INTERACTIONS
   // ----------------------------------------------------------
