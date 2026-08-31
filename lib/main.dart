@@ -272,13 +272,15 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       description:
           'Skills, creativity and execution. Who would win this Duel?',
       icon: Icons.sports_soccer,
+      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
     ),
     FeedVideo(
       username: 'Creative Talent',
       title: '60 Second Creative Challenge',
       description:
           'You have 60 seconds. Show the world what you can create.',
-      icon: Icons.auto_awesome,
+     icon: Icons.auto_awesome,
+     videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
     ),
     FeedVideo(
       username: 'Future Talent',
@@ -286,7 +288,8 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       description:
           'Build proof, get discovered and find opportunities through Reality Duel.',
       icon: Icons.public,
-    ),
+      videoUrl: 'https://sdbfruxgoefdwyzhkjay.supabase.co/storage/v1/object/public/videos/baa9bb5e74b7bb112f823f4868e177b5.mp4',
+     ),
   ];
 
   @override
@@ -410,7 +413,7 @@ class FeedVideo {
 // VIDEO FEED ITEM
 // ============================================================
 
-class VideoFeedItem extends StatelessWidget {
+class VideoFeedItem extends StatefulWidget {
   final FeedVideo video;
   final VoidCallback onLike;
   final VoidCallback onComment;
@@ -427,10 +430,243 @@ class VideoFeedItem extends StatelessWidget {
   });
 
   @override
+  State<VideoFeedItem> createState() => _VideoFeedItemState();
+}
+
+class _VideoFeedItemState extends State<VideoFeedItem> {
+  late final VideoPlayerController _controller;
+  late final Future<void> _initializeVideoFuture;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _controller = VideoPlayerController.networkUrl(
+      Uri.parse(widget.video.videoUrl),
+    );
+
+    _initializeVideoFuture = _initializeVideo();
+  }
+
+  Future<void> _initializeVideo() async {
+    await _controller.initialize();
+    await _controller.setLooping(true);
+    await _controller.play();
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayPause() {
+    if (_controller.value.isPlaying) {
+      _controller.pause();
+    } else {
+      _controller.play();
+    }
+
+    setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // ------------------------------------------------------
+        // REAL VIDEO
+        // ------------------------------------------------------
+
+        FutureBuilder<void>(
+          future: _initializeVideoFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.done &&
+                _controller.value.isInitialized) {
+              return GestureDetector(
+                onTap: _togglePlayPause,
+                child: Center(
+                  child: AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: VideoPlayer(_controller),
+                  ),
+                ),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text(
+                  'Unable to load video',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              );
+            }
+
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          },
+        ),
+
+        // ------------------------------------------------------
+        // DARK GRADIENT OVERLAY
+        // ------------------------------------------------------
+
+        IgnorePointer(
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: 0.15),
+                  Colors.transparent,
+                  Colors.black.withValues(alpha: 0.65),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // ------------------------------------------------------
+        // TOP BRANDING
+        // ------------------------------------------------------
+
+        const Positioned(
+          top: 50,
+          left: 20,
+          child: Text(
+            'REALITY DUEL',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+
+        // ------------------------------------------------------
+        // VIDEO INFORMATION
+        // ------------------------------------------------------
+
+        Positioned(
+          left: 20,
+          right: 80,
+          bottom: 35,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.video.username,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.video.title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                widget.video.description,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ------------------------------------------------------
+        // ACTION BUTTONS
+        // ------------------------------------------------------
+
+        Positioned(
+          right: 12,
+          bottom: 100,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: widget.onLike,
+                icon: const Icon(
+                  Icons.favorite_border,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 12),
+              IconButton(
+                onPressed: widget.onComment,
+                icon: const Icon(
+                  Icons.comment,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 12),
+              IconButton(
+                onPressed: widget.onFollow,
+                icon: const Icon(
+                  Icons.person_add,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 12),
+              IconButton(
+                onPressed: widget.onShare,
+                icon: const Icon(
+                  Icons.share,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // ------------------------------------------------------
+        // PLAY / PAUSE BUTTON
+        // ------------------------------------------------------
+
+        if (_controller.value.isInitialized)
+          Center(
+            child: AnimatedOpacity(
+              opacity: _controller.value.isPlaying ? 0.0 : 1.0,
+              duration: const Duration(milliseconds: 200),
+              child: IconButton(
+                onPressed: _togglePlayPause,
+                icon: const Icon(
+                  Icons.play_circle_fill,
+                  color: Colors.white,
+                  size: 80,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
         // ------------------------------------------------------
         // VIDEO PLACEHOLDER
         // ------------------------------------------------------
