@@ -264,37 +264,21 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   }
 
   try {
-    // Search from the ROOT of the videos bucket.
-    final paths = await _findVideoFiles('');
+    const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
 
-    final loadedVideos = <FeedVideo>[];
+    final publicUrl = supabase.storage
+        .from('videos')
+        .getPublicUrl(videoPath);
 
-    for (final path in paths) {
-      final lower = path.toLowerCase();
-
-      if (!lower.endsWith('.mp4') &&
-          !lower.endsWith('.mov') &&
-          !lower.endsWith('.m4v') &&
-          !lower.endsWith('.webm') &&
-          !lower.endsWith('.avi')) {
-        continue;
-      }
-
-      final publicUrl = supabase.storage
-          .from('videos')
-          .getPublicUrl(path);
-
-      loadedVideos.add(
-        FeedVideo(
-          username: 'Reality Talent',
-          title: 'Real Talent Video',
-          description:
-              'A real video uploaded to Reality Duel.',
-          icon: Icons.play_circle_fill,
-          videoUrl: publicUrl,
-        ),
-      );
-    }
+    final loadedVideos = <FeedVideo>[
+      FeedVideo(
+        username: 'Reality Talent',
+        title: 'Real Talent Video',
+        description: 'A real video uploaded to Reality Duel.',
+        icon: Icons.play_circle_fill,
+        videoUrl: publicUrl,
+      ),
+    ];
 
     if (!mounted) return;
 
@@ -310,7 +294,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       errorMessage = error.toString();
     });
   }
-}
+  }
 
 // ----------------------------------------------------------
 // FIND FILES INSIDE VIDEOS BUCKET
