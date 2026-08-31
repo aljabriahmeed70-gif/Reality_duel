@@ -251,6 +251,10 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     loadVideos();
   }
 
+  // ----------------------------------------------------------
+  // LOAD REAL VIDEO FROM SUPABASE STORAGE
+  // ----------------------------------------------------------
+
   Future<void> loadVideos() async {
     if (!mounted) return;
 
@@ -260,43 +264,21 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     });
 
     try {
-      final files = await Supabase.instance.client.storage
+      const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
+
+      final publicUrl = supabase.storage
           .from('videos')
-          .list();
+          .getPublicUrl(videoPath);
 
-      final List<FeedVideo> loadedVideos = [];
-
-      for (final file in files) {
-        final fileName = file.name;
-
-        // تجاهل المجلدات
-        if (fileName.isEmpty || fileName.endsWith('/')) {
-          continue;
-        }
-
-        // قبول ملفات الفيديو فقط
-        final lowerName = fileName.toLowerCase();
-
-        if (!lowerName.endsWith('.mp4') &&
-            !lowerName.endsWith('.mov') &&
-            !lowerName.endsWith('.m4v') &&
-            !lowerName.endsWith('.webm')) {
-          continue;
-        }
-
-        final videoUrl = Supabase.instance.client.storage
-            .from('videos')
-            .getPublicUrl(fileName);
-
-        loadedVideos.add(
-          FeedVideo(
-            id: fileName,
-            videoUrl: videoUrl,
-            username: 'Reality Duel',
-            description: '',
-          ),
-        );
-      }
+      final loadedVideos = <FeedVideo>[
+        FeedVideo(
+          username: 'Reality Talent',
+          title: 'Real Talent Video',
+          description: 'A real video uploaded to Reality Duel.',
+          icon: Icons.play_circle_fill,
+          videoUrl: publicUrl,
+        ),
+      ];
 
       if (!mounted) return;
 
@@ -305,270 +287,15 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
         loading = false;
         errorMessage = null;
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
 
       setState(() {
         loading = false;
-        errorMessage = e.toString();
+        errorMessage = error.toString();
       });
     }
   }
-
-  void requireLogin(
-    BuildContext context, {
-    required String action,
-  }) {
-    final user = Supabase.instance.client.auth.currentUser;
-
-    if (user != null) {
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Login required'),
-          content: Text(
-            'Please login to $action.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LoginPage(),
-                  ),
-                );
-              },
-              child: const Text('Login'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    if (errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 60,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Unable to load videos.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                errorMessage!,
-                textAlign: TextAlign.center,
-                maxLines: 5,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 20),
-              FilledButton.icon(
-                onPressed: loadVideos,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Try Again'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (videos.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: loadVideos,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: const [
-            SizedBox(height: 220),
-            Icon(
-              Icons.video_library_outlined,
-              size: 70,
-            ),
-            SizedBox(height: 20),
-            Center(
-              child: Text(
-                'No videos available yet.',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            SizedBox(height: 8),
-            Center(
-              child: Text(
-                'Upload a video to Supabase Storage.',
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return PageView.builder(
-      controller: pageController,
-      scrollDirection: Axis.vertical,
-      itemCount: videos.length,
-      itemBuilder: (context, index) {
-        final video = videos[index];
-
-        return VideoFeedItem(
-          video: video,
-          onLike: () {
-            requireLogin(
-              context,
-              action: 'like this video',
-            );
-          },
-          onComment: () {
-            requireLogin(
-              context,
-              action: 'comment on this video',
-            );
-          },
-          onFollow: () {
-            requireLogin(
-              context,
-              action: 'follow this talent',
-            );
-          },
-          onShare: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Share feature coming soon.',
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    pageController.dispose();
-    super.dispose();
-  }
-}
-
-  // ----------------------------------------------------------
-  // LOAD REAL VIDEOS FROM SUPABASE STORAGE
-  // ----------------------------------------------------------
-
-  Future<void> loadVideos() async {
-  if (mounted) {
-    setState(() {
-      loading = true;
-      errorMessage = null;
-    });
-  }
-
-  try {
-    const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
-
-    final publicUrl = supabase.storage
-        .from('videos')
-        .getPublicUrl(videoPath);
-
-    final loadedVideos = <FeedVideo>[
-      FeedVideo(
-        username: 'Reality Talent',
-        title: 'Real Talent Video',
-        description: 'A real video uploaded to Reality Duel.',
-        icon: Icons.play_circle_fill,
-        videoUrl: publicUrl,
-      ),
-    ];
-
-    if (!mounted) return;
-
-    setState(() {
-      videos = loadedVideos;
-      loading = false;
-    });
-  } catch (error) {
-    if (!mounted) return;
-
-    setState(() {
-      loading = false;
-      errorMessage = error.toString();
-    });
-  }
-  }
-
-// ----------------------------------------------------------
-// FIND FILES INSIDE VIDEOS BUCKET
-// ----------------------------------------------------------
-
- Future<List<String>> _findVideoFiles(String folder) async {
-  final results = <String>[];
-
-  final items = await supabase.storage.from('videos').list(
-    path: folder,
-    searchOptions: const SearchOptions(
-      limit: 100,
-    ),
-  );
-
-  for (final item in items) {
-    final itemName = item.name.trim();
-
-    if (itemName.isEmpty) {
-      continue;
-    }
-
-    final fullPath = folder.isEmpty
-        ? itemName
-        : '$folder/$itemName';
-
-    final lowerName = itemName.toLowerCase();
-
-    if (lowerName.endsWith('.mp4') ||
-        lowerName.endsWith('.mov') ||
-        lowerName.endsWith('.m4v') ||
-        lowerName.endsWith('.webm') ||
-        lowerName.endsWith('.avi')) {
-      results.add(fullPath);
-    }
-  }
-
-  return results;
- } 
 
   // ----------------------------------------------------------
   // LOGIN REQUIREMENT FOR INTERACTIONS
@@ -754,7 +481,6 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     super.dispose();
   }
 }
-
 // ============================================================
 // FEED VIDEO MODEL
 // ============================================================
