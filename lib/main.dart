@@ -316,15 +316,15 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
 // FIND FILES INSIDE VIDEOS BUCKET
 // ----------------------------------------------------------
 
-  Future<List<String>> _findVideoFiles(String folder) async {
+ Future<List<String>> _findVideoFiles(String folder) async {
   final results = <String>[];
 
   final items = await supabase.storage.from('videos').list(
-        path: folder,
-        searchOptions: const SearchOptions(
-          limit: 100,
-        ),
-      );
+    path: folder,
+    searchOptions: const SearchOptions(
+      limit: 100,
+    ),
+  );
 
   for (final item in items) {
     final itemName = item.name.trim();
@@ -339,23 +339,17 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
 
     final lowerName = itemName.toLowerCase();
 
-    // Treat files based on their extension.
-    // This works even when Supabase does not return an id.
     if (lowerName.endsWith('.mp4') ||
         lowerName.endsWith('.mov') ||
         lowerName.endsWith('.m4v') ||
         lowerName.endsWith('.webm') ||
         lowerName.endsWith('.avi')) {
       results.add(fullPath);
-    } else {
-      // If it is a folder, search inside it.
-      final nestedFiles = await _findVideoFiles(fullPath);
-      results.addAll(nestedFiles);
     }
   }
 
   return results;
-}
+ } 
 
   // ----------------------------------------------------------
   // LOGIN REQUIREMENT FOR INTERACTIONS
