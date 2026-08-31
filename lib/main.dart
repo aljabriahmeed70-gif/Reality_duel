@@ -256,47 +256,76 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   // ----------------------------------------------------------
 
   Future<void> loadVideos() async {
-    if (!mounted) return;
+  if (!mounted) return;
 
-    setState(() {
-      loading = true;
-      errorMessage = null;
-    });
+  setState(() {
+    loading = true;
+    errorMessage = null;
+  });
 
-    try {
-      const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
+  try {
+    final files = await supabase.storage
+        .from('videos')
+        .list(
+          path: '',
+          searchOptions: const SearchOptions(
+            limit: 100,
+          ),
+        );
+
+    final loadedVideos = <FeedVideo>[];
+
+    for (final file in files) {
+      final fileName = file.name.trim();
+
+      if (fileName.isEmpty) {
+        continue;
+      }
+
+      final lowerName = fileName.toLowerCase();
+
+      final isVideo =
+          lowerName.endsWith('.mp4') ||
+          lowerName.endsWith('.mov') ||
+          lowerName.endsWith('.m4v') ||
+          lowerName.endsWith('.webm') ||
+          lowerName.endsWith('.avi');
+
+      if (!isVideo) {
+        continue;
+      }
 
       final publicUrl = supabase.storage
           .from('videos')
-          .getPublicUrl(videoPath);
+          .getPublicUrl(fileName);
 
-      final loadedVideos = <FeedVideo>[
+      loadedVideos.add(
         FeedVideo(
           username: 'Reality Talent',
-          title: 'Real Talent Video',
-          description: 'A real video uploaded to Reality Duel.',
+          title: 'Reality Duel Video',
+          description: 'A video uploaded to Reality Duel.',
           icon: Icons.play_circle_fill,
           videoUrl: publicUrl,
         ),
-      ];
-
-      if (!mounted) return;
-
-      setState(() {
-        videos = loadedVideos;
-        loading = false;
-        errorMessage = null;
-      });
-    } catch (error) {
-      if (!mounted) return;
-
-      setState(() {
-        loading = false;
-        errorMessage = error.toString();
-      });
+      );
     }
-  }
 
+    if (!mounted) return;
+
+    setState(() {
+      videos = loadedVideos;
+      loading = false;
+      errorMessage = null;
+    });
+  } catch (error) {
+    if (!mounted) return;
+
+    setState(() {
+      loading = false;
+      errorMessage = error.toString();
+    });
+  }
+  }
   // ----------------------------------------------------------
   // LOGIN REQUIREMENT FOR INTERACTIONS
   // ----------------------------------------------------------
