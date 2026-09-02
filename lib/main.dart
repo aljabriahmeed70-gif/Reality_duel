@@ -264,21 +264,22 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   });
 
   try {
-    const videoPath = 'baa9bb5e74b7bb112f823f4868e177b5.mp4';
-
-    final publicUrl = supabase.storage
+    final response = await supabase
         .from('videos')
-        .getPublicUrl(videoPath);
+        .select(
+          'id, storage_path, video_url, caption, views_count, likes_count, comments_count, created_at',
+        )
+        .order('created_at', ascending: false);
 
-    final loadedVideos = <FeedVideo>[
-      FeedVideo(
+    final loadedVideos = (response as List).map((item) {
+      return FeedVideo(
         username: 'Reality Talent',
-        title: 'Real Talent Video',
-        description: 'A real video uploaded to Reality Duel.',
+        title: item['caption'] ?? 'Reality Duel Video',
+        description: item['caption'] ?? '',
         icon: Icons.play_circle_fill,
-        videoUrl: publicUrl,
-      ),
-    ];
+        videoUrl: item['video_url'] as String,
+      );
+    }).toList();
 
     if (!mounted) return;
 
