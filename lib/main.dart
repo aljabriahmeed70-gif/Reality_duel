@@ -1,22 +1,26 @@
-import 'package:flutter/material.dart';
+import 'dart:typed_data';
+
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
 
-const String supabaseUrl = 'YOUR_SUPABASE_URL';
-const String supabaseAnonKey = 'YOUR_SUPABASE_ANON_KEY';
+const String supabaseUrl = 'https://sdbfruxgoefdwyzhkjay.supabase.co';
 
-late final SupabaseClient supabase;
+const String supabasePublishableKey =
+    'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2';
+
+const String videoBucket = 'videos';
+
+final SupabaseClient supabase = Supabase.instance.client;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: supabaseUrl,
-    anonKey: supabaseAnonKey,
+    anonKey: supabasePublishableKey,
   );
-
-  supabase = Supabase.instance.client;
 
   runApp(const RealityDuelApp());
 }
@@ -29,29 +33,14 @@ class RealityDuelApp extends StatefulWidget {
 }
 
 class _RealityDuelAppState extends State<RealityDuelApp> {
-  String language = 'English';
+  Locale _locale = const Locale('en');
 
-  void changeLanguage(String value) {
+  bool get isArabic => _locale.languageCode == 'ar';
+
+  void changeLanguage(Locale locale) {
     setState(() {
-      language = value;
+      _locale = locale;
     });
-  }
-
-  Locale get currentLocale {
-    switch (language) {
-      case 'العربية':
-        return const Locale('ar');
-      case 'Español':
-        return const Locale('es');
-      case 'Français':
-        return const Locale('fr');
-      case 'Türkçe':
-        return const Locale('tr');
-      case '中文':
-        return const Locale('zh');
-      default:
-        return const Locale('en');
-    }
   }
 
   @override
@@ -59,181 +48,37 @@ class _RealityDuelAppState extends State<RealityDuelApp> {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Reality Duel',
-      locale: currentLocale,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
+        scaffoldBackgroundColor: const Color(0xFF080808),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepPurple,
+          seedColor: Colors.redAccent,
           brightness: Brightness.dark,
         ),
         useMaterial3: true,
       ),
-      home: AppShell(
-        language: language,
-        onLanguageChanged: changeLanguage,
+      home: Directionality(
+        textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+        child: AppShell(
+          locale: _locale,
+          onLanguageChanged: changeLanguage,
+        ),
       ),
     );
   }
 }
 
-/* ============================================================
-   HELPERS
-   ============================================================ */
-
-bool get loggedIn => supabase.auth.currentUser != null;
-
-bool isArabic(String language) => language == 'العربية';
-
-String t(
-  String language, {
-  required String en,
-  required String ar,
-  String? es,
-  String? fr,
-  String? tr,
-  String? zh,
-}) {
-  switch (language) {
-    case 'العربية':
-      return ar;
-    case 'Español':
-      return es ?? en;
-    case 'Français':
-      return fr ?? en;
-    case 'Türkçe':
-      return tr ?? en;
-    case '中文':
-      return zh ?? en;
-    default:
-      return en;
-  }
-}
-
-void snack(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message)),
-  );
-}
-
-Future<bool> requireLogin(
-  BuildContext context,
-  String language,
-) async {
-  if (supabase.auth.currentUser != null) {
-    return true;
-  }
-
-  final arabic = isArabic(language);
-
-  final result = await showDialog<bool>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        title: Text(
-          t(
-            language,
-            en: 'Sign in required',
-            ar: 'تسجيل الدخول مطلوب',
-          ),
-        ),
-        content: Text(
-          t(
-            language,
-            en: 'You can watch videos without an account. Sign in to like, comment, follow, upload videos, create duels, and apply for opportunities.',
-            ar: 'يمكنك مشاهدة الفيديوهات بدون حساب. يجب تسجيل الدخول للإعجاب والتعليق والمتابعة ورفع الفيديوهات وإنشاء المواجهات والتقديم على الفرص.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(arabic ? 'لاحقًا' : 'Later'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(arabic ? 'تسجيل الدخول' : 'Sign in'),
-          ),
-        ],
-      );
-    },
-  );
-
-  if (result == true && context.mounted) {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LoginPage(language: language),
-      ),
-    );
-  }
-
-  return supabase.auth.currentUser != null;
-}
-
-Future<void> showLanguagePicker(
-  BuildContext context,
-  String current,
-  ValueChanged<String> onChanged,
-) async {
-  final languages = [
-    'English',
-    'العربية',
-    'Español',
-    'Français',
-    'Türkçe',
-    '中文',
-  ];
-
-  await showModalBottomSheet(
-    context: context,
-    showDragHandle: true,
-    builder: (context) {
-      return SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'Language / اللغة',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            ...languages.map(
-              (language) => ListTile(
-                leading: Icon(
-                  language == current
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off,
-                ),
-                title: Text(language),
-                onTap: () {
-                  onChanged(language);
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-/* ============================================================
-   APP SHELL
-   ============================================================ */
+// ============================================================
+// APP SHELL
+// ============================================================
 
 class AppShell extends StatefulWidget {
-  final String language;
-  final ValueChanged<String> onLanguageChanged;
+  final Locale locale;
+  final ValueChanged<Locale> onLanguageChanged;
 
   const AppShell({
     super.key,
-    required this.language,
+    required this.locale,
     required this.onLanguageChanged,
   });
 
@@ -242,229 +87,325 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  int currentIndex = 0;
+  int _index = 0;
+
+  bool get isArabic => widget.locale.languageCode == 'ar';
+
+  List<Widget> get pages => const [
+        VideoFeedPage(),
+        DuelsPage(),
+        DiscoverPage(),
+        OpportunitiesPage(),
+        TalentProfilePage(),
+      ];
+
+  List<String> get labels {
+    if (isArabic) {
+      return [
+        'الرئيسية',
+        'المواجهات',
+        'المواهب',
+        'الفرص',
+        'حسابي',
+      ];
+    }
+
+    return [
+      'Feed',
+      'Duels',
+      'Talent',
+      'Opportunities',
+      'Profile',
+    ];
+  }
+
+  List<IconData> get icons => const [
+        Icons.play_circle_fill,
+        Icons.sports_kabaddi,
+        Icons.search,
+        Icons.work_outline,
+        Icons.person_outline,
+      ];
+
+  void openLanguageSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF171717),
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Language / اللغة',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _languageTile(
+                  'English',
+                  const Locale('en'),
+                  Icons.language,
+                ),
+                _languageTile(
+                  'العربية',
+                  const Locale('ar'),
+                  Icons.translate,
+                ),
+                _languageTile(
+                  'Español',
+                  const Locale('es'),
+                  Icons.language,
+                ),
+                _languageTile(
+                  'Français',
+                  const Locale('fr'),
+                  Icons.language,
+                ),
+                _languageTile(
+                  'Türkçe',
+                  const Locale('tr'),
+                  Icons.language,
+                ),
+                _languageTile(
+                  '中文',
+                  const Locale('zh'),
+                  Icons.language,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _languageTile(
+    String title,
+    Locale locale,
+    IconData icon,
+  ) {
+    final selected = widget.locale.languageCode == locale.languageCode;
+
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(title),
+      trailing: selected
+          ? const Icon(
+              Icons.check_circle,
+              color: Colors.redAccent,
+            )
+          : null,
+      onTap: () {
+        Navigator.pop(context);
+        widget.onLanguageChanged(locale);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final arabic = isArabic(widget.language);
-
-    final pages = [
-      FeedPage(
-        language: widget.language,
-        onLanguageChanged: widget.onLanguageChanged,
+    return Scaffold(
+      body: IndexedStack(
+        index: _index,
+        children: pages,
       ),
-      DuelsPage(language: widget.language),
-      DiscoverPage(language: widget.language),
-      OpportunitiesPage(language: widget.language),
-      ProfilePage(language: widget.language),
-    ];
-
-    final labels = [
-      t(
-        widget.language,
-        en: 'Feed',
-        ar: 'الرئيسية',
-        es: 'Inicio',
-        fr: 'Accueil',
-        tr: 'Akış',
-        zh: '首页',
-      ),
-      t(
-        widget.language,
-        en: 'Duels',
-        ar: 'المواجهات',
-        es: 'Duelos',
-        fr: 'Duels',
-        tr: 'Düellolar',
-        zh: '对决',
-      ),
-      t(
-        widget.language,
-        en: 'Talent',
-        ar: 'المواهب',
-        es: 'Talento',
-        fr: 'Talents',
-        tr: 'Yetenek',
-        zh: '人才',
-      ),
-      t(
-        widget.language,
-        en: 'Opportunities',
-        ar: 'الفرص',
-        es: 'Oportunidades',
-        fr: 'Opportunités',
-        tr: 'Fırsatlar',
-        zh: '机会',
-      ),
-      t(
-        widget.language,
-        en: 'Profile',
-        ar: 'حسابي',
-        es: 'Perfil',
-        fr: 'Profil',
-        tr: 'Profil',
-        zh: '我的',
-      ),
-    ];
-
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        body: IndexedStack(
-          index: currentIndex,
-          children: pages,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: (value) {
+          setState(() {
+            _index = value;
+          });
+        },
+        destinations: List.generate(
+          labels.length,
+          (index) => NavigationDestination(
+            icon: Icon(icons[index]),
+            selectedIcon: Icon(icons[index]),
+            label: labels[index],
+          ),
         ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: currentIndex,
-          onDestinationSelected: (value) {
-            setState(() {
-              currentIndex = value;
-            });
-          },
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.play_circle_outline),
-              selectedIcon: const Icon(Icons.play_circle),
-              label: labels[0],
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.sports_mma_outlined),
-              selectedIcon: const Icon(Icons.sports_mma),
-              label: labels[1],
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.people_outline),
-              selectedIcon: const Icon(Icons.people),
-              label: labels[2],
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.work_outline),
-              selectedIcon: const Icon(Icons.work),
-              label: labels[3],
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
-              label: labels[4],
-            ),
-          ],
-        ),
-        floatingActionButton: currentIndex == 0
-            ? FloatingActionButton(
-                onPressed: () {
-                  showLanguagePicker(
-                    context,
-                    widget.language,
-                    widget.onLanguageChanged,
-                  );
-                },
-                child: const Icon(Icons.language),
-              )
-            : null,
+      ),
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'language_button',
+        onPressed: openLanguageSelector,
+        child: const Icon(Icons.language),
       ),
     );
   }
 }
 
-/* ============================================================
-   FEED MODEL
-   ============================================================ */
+// ============================================================
+// HELPERS
+// ============================================================
 
-class FeedVideo {
-  final String id;
-  final String userId;
+bool get isLoggedIn => supabase.auth.currentUser != null;
+
+void requireLogin(
+  BuildContext context, {
+  String message = 'Please login to continue.',
+}) {
+  if (isLoggedIn) return;
+
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: const Text('Login required'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(context);
+
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const LoginPage(),
+                ),
+              );
+            },
+            child: const Text('Login'),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+void showMessage(
+  BuildContext context,
+  String message,
+) {
+  if (!context.mounted) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+    ),
+  );
+}
+
+String formatCount(dynamic value) {
+  final number = int.tryParse('$value') ?? 0;
+
+  if (number >= 1000000) {
+    return '${(number / 1000000).toStringAsFixed(1)}M';
+  }
+
+  if (number >= 1000) {
+    return '${(number / 1000).toStringAsFixed(1)}K';
+  }
+
+  return '$number';
+}
+
+String safeString(dynamic value) {
+  return value?.toString() ?? '';
+}
+
+// ============================================================
+// VIDEO MODEL
+// ============================================================
+
+class VideoItem {
+  final dynamic id;
   final String videoUrl;
-  final String storagePath;
   final String caption;
+  final String userId;
+  final String username;
+  final String displayName;
+  final String avatarUrl;
   final int likes;
   final int comments;
   final int views;
 
-  const FeedVideo({
-    required this.id,
-    required this.userId,
+  VideoItem({
+    this.id,
     required this.videoUrl,
-    required this.storagePath,
-    required this.caption,
-    required this.likes,
-    required this.comments,
-    required this.views,
+    this.caption = '',
+    this.userId = '',
+    this.username = '',
+    this.displayName = '',
+    this.avatarUrl = '',
+    this.likes = 0,
+    this.comments = 0,
+    this.views = 0,
   });
 
-  factory FeedVideo.fromMap(Map<String, dynamic> map) {
-    return FeedVideo(
-      id: '${map['id'] ?? ''}',
-      userId: '${map['user_id'] ?? ''}',
-      videoUrl: '${map['video_url'] ?? ''}',
-      storagePath: '${map['storage_path'] ?? ''}',
-      caption: '${map['caption'] ?? ''}',
-      likes: _number(map['likes_count']),
-      comments: _number(map['comments_count']),
-      views: _number(map['views_count']),
-    );
-  }
+  factory VideoItem.fromMap(Map<String, dynamic> map) {
+    final profile = map['profiles'];
 
-  static int _number(dynamic value) {
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    return int.tryParse('$value') ?? 0;
-  }
+    String profileUsername = '';
+    String profileDisplayName = '';
+    String profileAvatar = '';
 
-  FeedVideo copyWith({
-    int? likes,
-    int? comments,
-    int? views,
-  }) {
-    return FeedVideo(
-      id: id,
-      userId: userId,
-      videoUrl: videoUrl,
-      storagePath: storagePath,
-      caption: caption,
-      likes: likes ?? this.likes,
-      comments: comments ?? this.comments,
-      views: views ?? this.views,
+    if (profile is Map<String, dynamic>) {
+      profileUsername = safeString(profile['username']);
+      profileDisplayName = safeString(profile['display_name']);
+      profileAvatar = safeString(profile['avatar_url']);
+    }
+
+    return VideoItem(
+      id: map['id'],
+      videoUrl: safeString(
+        map['video_url'] ?? map['url'],
+      ),
+      caption: safeString(map['caption']),
+      userId: safeString(map['user_id']),
+      username: safeString(
+        map['username'] ?? profileUsername,
+      ),
+      displayName: safeString(
+        map['display_name'] ?? profileDisplayName,
+      ),
+      avatarUrl: safeString(
+        map['avatar_url'] ?? profileAvatar,
+      ),
+      likes: int.tryParse(
+            '${map['likes_count'] ?? map['like_count'] ?? 0}',
+          ) ??
+          0,
+      comments: int.tryParse(
+            '${map['comments_count'] ?? map['comment_count'] ?? 0}',
+          ) ??
+          0,
+      views: int.tryParse(
+            '${map['views_count'] ?? map['view_count'] ?? 0}',
+          ) ??
+          0,
     );
   }
 }
 
-/* ============================================================
-   FEED
-   ============================================================ */
+// ============================================================
+// VIDEO FEED
+// ============================================================
 
-class FeedPage extends StatefulWidget {
-  final String language;
-  final ValueChanged<String> onLanguageChanged;
-
-  const FeedPage({
-    super.key,
-    required this.language,
-    required this.onLanguageChanged,
-  });
+class VideoFeedPage extends StatefulWidget {
+  const VideoFeedPage({super.key});
 
   @override
-  State<FeedPage> createState() => _FeedPageState();
+  State<VideoFeedPage> createState() => _VideoFeedPageState();
 }
 
-class _FeedPageState extends State<FeedPage> {
-  final PageController pageController = PageController();
-
-  List<FeedVideo> videos = [];
+class _VideoFeedPageState extends State<VideoFeedPage> {
+  List<VideoItem> videos = [];
   bool loading = true;
   String? error;
-  int currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     loadVideos();
-  }
-
-  @override
-  void dispose() {
-    pageController.dispose();
-    super.dispose();
   }
 
   Future<void> loadVideos() async {
@@ -475,273 +416,355 @@ class _FeedPageState extends State<FeedPage> {
       error = null;
     });
 
-    bool loadedFromDatabase = false;
-
     try {
-      final result = await supabase
-          .from('videos')
-          .select(
-            'id,user_id,storage_path,video_url,caption,status,likes_count,comments_count,views_count,created_at',
-          )
-          .eq('status', 'published')
-          .order('created_at', ascending: false);
+      List<VideoItem> databaseVideos = [];
 
-      final databaseVideos = <FeedVideo>[];
+      try {
+        final response = await supabase
+            .from('videos')
+            .select()
+            .eq('status', 'published')
+            .order(
+              'created_at',
+              ascending: false,
+            );
 
-      for (final item in result) {
-        final map = Map<String, dynamic>.from(item);
-
-        String url = '${map['video_url'] ?? ''}';
-        final storagePath = '${map['storage_path'] ?? ''}';
-
-        if (url.isEmpty && storagePath.isNotEmpty) {
-          url = supabase.storage
+        if (response is List) {
+          databaseVideos = response
+              .whereType<Map<String, dynamic>>()
+              .map(VideoItem.fromMap)
+              .where((video) => video.videoUrl.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {
+        // Some schemas may not have status.
+        try {
+          final response = await supabase
               .from('videos')
-              .getPublicUrl(storagePath);
-          map['video_url'] = url;
-        }
+              .select()
+              .order(
+                'created_at',
+                ascending: false,
+              );
 
-        if (url.isNotEmpty) {
-          databaseVideos.add(
-            FeedVideo.fromMap(map),
-          );
-        }
+          if (response is List) {
+            databaseVideos = response
+                .whereType<Map<String, dynamic>>()
+                .map(VideoItem.fromMap)
+                .where((video) => video.videoUrl.isNotEmpty)
+                .toList();
+          }
+        } catch (_) {}
       }
 
       if (databaseVideos.isNotEmpty) {
-        loadedFromDatabase = true;
+        if (!mounted) return;
 
-        if (mounted) {
-          setState(() {
-            videos = databaseVideos;
-            loading = false;
-          });
-        }
+        setState(() {
+          videos = databaseVideos;
+          loading = false;
+        });
+
+        return;
       }
-    } catch (_) {
-      // Storage fallback below.
-    }
 
-    if (loadedFromDatabase) return;
+      // --------------------------------------------------------
+      // FALLBACK: READ DIRECTLY FROM PUBLIC STORAGE
+      // --------------------------------------------------------
 
-    try {
       final files = await supabase.storage
-          .from('videos')
+          .from(videoBucket)
           .list();
 
-      final storageVideos = <FeedVideo>[];
+      final storageVideos = <VideoItem>[];
 
       for (final file in files) {
-        final name = file.name.toLowerCase();
+        final name = file.name;
 
-        final isVideo =
-            name.endsWith('.mp4') ||
-            name.endsWith('.mov') ||
-            name.endsWith('.m4v') ||
-            name.endsWith('.webm') ||
-            name.endsWith('.avi');
+        final lower = name.toLowerCase();
+
+        final isVideo = lower.endsWith('.mp4') ||
+            lower.endsWith('.mov') ||
+            lower.endsWith('.m4v') ||
+            lower.endsWith('.webm') ||
+            lower.endsWith('.avi');
 
         if (!isVideo) continue;
 
-        final url = supabase.storage
-            .from('videos')
-            .getPublicUrl(file.name);
+        final publicUrl = supabase.storage
+            .from(videoBucket)
+            .getPublicUrl(name);
 
         storageVideos.add(
-          FeedVideo(
-            id: '',
-            userId: '',
-            videoUrl: url,
-            storagePath: file.name,
-            caption: '',
-            likes: 0,
-            comments: 0,
-            views: 0,
+          VideoItem(
+            id: name,
+            videoUrl: publicUrl,
+            caption: name,
           ),
         );
       }
 
+      if (!mounted) return;
+
+      setState(() {
+        videos = storageVideos;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+        error = e.toString();
+      });
+    }
+  }
+
+  void openUploadMenu() {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login is required to upload or create content.',
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF171717),
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.video_library),
+                title: const Text('Upload video'),
+                subtitle: const Text(
+                  'Choose a video from your device',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  uploadVideo();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.videocam),
+                title: const Text('Record video'),
+                subtitle: const Text(
+                  'Camera recording requires camera package setup',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+
+                  showMessage(
+                    context,
+                    'Camera recording will be enabled after adding the camera module.',
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.live_tv),
+                title: const Text('Go Live'),
+                subtitle: const Text(
+                  'Live streaming requires a streaming provider',
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+
+                  showMessage(
+                    context,
+                    'Live streaming requires a streaming provider and live backend.',
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> uploadVideo() async {
+    if (!isLoggedIn) {
+      requireLogin(context);
+      return;
+    }
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.video,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final picked = result.files.first;
+
+      Uint8List? bytes = picked.bytes;
+
+      if (bytes == null) {
+        showMessage(
+          context,
+          'Could not read the selected video.',
+        );
+        return;
+      }
+
+      final user = supabase.auth.currentUser;
+
+      if (user == null) {
+        requireLogin(context);
+        return;
+      }
+
+      final originalName = picked.name;
+
+      final cleanName = originalName
+          .replaceAll(
+            RegExp(r'[^a-zA-Z0-9._-]'),
+            '_',
+          );
+
+      final filePath =
+          '${user.id}/${DateTime.now().millisecondsSinceEpoch}_$cleanName';
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 18),
+                Expanded(
+                  child: Text('Uploading video...'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      await supabase.storage
+          .from(videoBucket)
+          .uploadBinary(
+            filePath,
+            bytes,
+            fileOptions: const FileOptions(
+              upsert: false,
+            ),
+          );
+
+      final publicUrl = supabase.storage
+          .from(videoBucket)
+          .getPublicUrl(filePath);
+
+      try {
+        await supabase.rpc(
+          'create_video_record',
+          params: {
+            'p_storage_path': filePath,
+            'p_video_url': publicUrl,
+            'p_caption': originalName,
+          },
+        );
+      } catch (_) {
+        // Fallback for schemas without the RPC.
+        try {
+          await supabase.from('videos').insert({
+            'user_id': user.id,
+            'storage_path': filePath,
+            'video_url': publicUrl,
+            'caption': originalName,
+          });
+        } catch (_) {
+          try {
+            await supabase.from('videos').insert({
+              'user_id': user.id,
+              'video_url': publicUrl,
+              'caption': originalName,
+            });
+          } catch (_) {}
+        }
+      }
+
       if (mounted) {
-        setState(() {
-          videos = storageVideos;
-          loading = false;
-          error = storageVideos.isEmpty
-              ? t(
-                  widget.language,
-                  en: 'No videos available yet.',
-                  ar: 'لا توجد فيديوهات متاحة حالياً.',
-                )
-              : null;
-        });
+        Navigator.of(context).pop();
+
+        showMessage(
+          context,
+          'Video uploaded successfully.',
+        );
+
+        await loadVideos();
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          loading = false;
-          error = '$e';
-        });
+        Navigator.of(context).pop();
+
+        showMessage(
+          context,
+          'Upload failed: $e',
+        );
       }
     }
   }
 
-  Future<void> openUpload() async {
-    if (!await requireLogin(context, widget.language)) return;
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => UploadVideoPage(
-          language: widget.language,
-        ),
-      ),
-    );
-
-    await loadVideos();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final arabic = isArabic(widget.language);
-
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
-          children: [
-            if (loading)
-              const Center(
-                child: CircularProgressIndicator(),
-              )
-            else if (videos.isEmpty)
-              _EmptyFeed(
-                language: widget.language,
-                onUpload: openUpload,
-                onRefresh: loadVideos,
-              )
-            else
-              RefreshIndicator(
-                onRefresh: loadVideos,
-                child: PageView.builder(
-                  controller: pageController,
-                  scrollDirection: Axis.vertical,
-                  itemCount: videos.length,
-                  onPageChanged: (value) {
-                    setState(() {
-                      currentPage = value;
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    return VideoFeedItem(
-                      key: ValueKey(
-                        '${videos[index].videoUrl}-$index',
-                      ),
-                      video: videos[index],
-                      language: widget.language,
-                      active: index == currentPage,
-                      onChanged: (updated) {
-                        if (!mounted) return;
-                        setState(() {
-                          videos[index] = updated;
-                        });
-                      },
-                    );
-                  },
-                ),
-              ),
-            Positioned(
-              top: MediaQuery.of(context).padding.top + 8,
-              left: 12,
-              right: 12,
-              child: Row(
-                children: [
-                  const Text(
-                    'REALITY DUEL',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: openUpload,
-                    icon: const Icon(
-                      Icons.video_call_outlined,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {
-                      showLanguagePicker(
-                        context,
-                        widget.language,
-                        widget.onLanguageChanged,
-                      );
-                    },
-                    icon: const Icon(Icons.language),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'Reality Duel',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        actions: [
+          IconButton(
+            onPressed: loadVideos,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _EmptyFeed extends StatelessWidget {
-  final String language;
-  final VoidCallback onUpload;
-  final Future<void> Function() onRefresh;
-
-  const _EmptyFeed({
-    required this.language,
-    required this.onUpload,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final arabic = isArabic(language);
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView(
+      body: Stack(
         children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * .75,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(30),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.video_library_outlined,
-                      size: 80,
-                    ),
-                    const SizedBox(height: 20),
-                    Text(
-                      arabic
-                          ? 'لا توجد فيديوهات منشورة بعد'
-                          : 'No videos available yet.',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 20),
-                    ),
-                    const SizedBox(height: 20),
-                    FilledButton.icon(
-                      onPressed: onUpload,
-                      icon: const Icon(Icons.upload),
-                      label: Text(
-                        arabic
-                            ? 'رفع فيديو'
-                            : 'Upload video',
-                      ),
-                    ),
-                  ],
-                ),
+          if (loading)
+            const Center(
+              child: CircularProgressIndicator(),
+            )
+          else if (error != null)
+            _ErrorView(
+              message: error!,
+              onRetry: loadVideos,
+            )
+          else if (videos.isEmpty)
+            const _EmptyFeed()
+          else
+            PageView.builder(
+              scrollDirection: Axis.vertical,
+              itemCount: videos.length,
+              itemBuilder: (context, index) {
+                return VideoFeedItem(
+                  video: videos[index],
+                );
+              },
+            ),
+
+          Positioned(
+            right: 16,
+            bottom: 20,
+            child: SafeArea(
+              child: FloatingActionButton(
+                heroTag: 'upload_video',
+                onPressed: openUploadMenu,
+                child: const Icon(Icons.add),
               ),
             ),
           ),
@@ -751,22 +774,16 @@ class _EmptyFeed extends StatelessWidget {
   }
 }
 
-/* ============================================================
-   VIDEO ITEM
-   ============================================================ */
+// ============================================================
+// VIDEO ITEM
+// ============================================================
 
 class VideoFeedItem extends StatefulWidget {
-  final FeedVideo video;
-  final String language;
-  final bool active;
-  final ValueChanged<FeedVideo> onChanged;
+  final VideoItem video;
 
   const VideoFeedItem({
     super.key,
     required this.video,
-    required this.language,
-    required this.active,
-    required this.onChanged,
   });
 
   @override
@@ -774,56 +791,42 @@ class VideoFeedItem extends StatefulWidget {
 }
 
 class _VideoFeedItemState extends State<VideoFeedItem> {
-  VideoPlayerController? player;
+  VideoPlayerController? controller;
 
   bool initialized = false;
-  bool failed = false;
   bool liked = false;
   bool following = false;
-  bool busy = false;
+  bool loadingLike = false;
 
-  bool get arabic => isArabic(widget.language);
+  int likes = 0;
+  int comments = 0;
+  int views = 0;
 
   @override
   void initState() {
     super.initState();
-    initializePlayer();
+
+    likes = widget.video.likes;
+    comments = widget.video.comments;
+    views = widget.video.views;
+
+    initializeVideo();
     loadInteractionState();
   }
 
-  @override
-  void didUpdateWidget(
-    covariant VideoFeedItem oldWidget,
-  ) {
-    super.didUpdateWidget(oldWidget);
-
-    if (oldWidget.video.videoUrl !=
-        widget.video.videoUrl) {
-      disposePlayer();
-      initializePlayer();
-      loadInteractionState();
-    }
-
-    if (oldWidget.active != widget.active) {
-      setPlaying(widget.active);
-    }
-  }
-
-  Future<void> initializePlayer() async {
+  Future<void> initializeVideo() async {
     try {
-      if (widget.video.videoUrl.isEmpty) {
-        throw Exception('Video URL is empty');
-      }
-
-      final controller =
+      final videoController =
           VideoPlayerController.networkUrl(
         Uri.parse(widget.video.videoUrl),
       );
 
-      player = controller;
+      controller = videoController;
 
-      await controller.initialize();
-      await controller.setLooping(true);
+      await videoController.initialize();
+
+      await videoController.setLooping(true);
+      await videoController.play();
 
       if (!mounted) return;
 
@@ -831,78 +834,20 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
         initialized = true;
       });
 
-      if (widget.active) {
-        await controller.play();
-        recordView();
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          failed = true;
-        });
-      }
+      recordView();
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        initialized = false;
+      });
     }
-  }
-
-  Future<void> setPlaying(bool value) async {
-    final p = player;
-
-    if (p == null || !initialized) return;
-
-    if (value) {
-      await p.play();
-    } else {
-      await p.pause();
-    }
-
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  Future<void> loadInteractionState() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null || widget.video.id.isEmpty) {
-      return;
-    }
-
-    try {
-      final result = await supabase.rpc(
-        'has_video_like',
-        params: {
-          'p_video_id': widget.video.id,
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          liked = result == true;
-        });
-      }
-    } catch (_) {}
-
-    if (widget.video.userId.isEmpty) return;
-
-    try {
-      final result = await supabase.rpc(
-        'is_following',
-        params: {
-          'p_target_user_id':
-              widget.video.userId,
-        },
-      );
-
-      if (mounted) {
-        setState(() {
-          following = result == true;
-        });
-      }
-    } catch (_) {}
   }
 
   Future<void> recordView() async {
-    if (widget.video.id.isEmpty) return;
+    if (!isLoggedIn) return;
+
+    if (widget.video.id == null) return;
 
     try {
       await supabase.rpc(
@@ -914,18 +859,54 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
     } catch (_) {}
   }
 
+  Future<void> loadInteractionState() async {
+    if (!isLoggedIn) return;
+
+    if (widget.video.id == null) return;
+
+    try {
+      final result = await supabase.rpc(
+        'has_video_like',
+        params: {
+          'p_video_id': widget.video.id,
+        },
+      );
+
+      liked = result == true;
+    } catch (_) {}
+
+    try {
+      if (widget.video.userId.isNotEmpty) {
+        final result = await supabase.rpc(
+          'is_following',
+          params: {
+            'p_target_user_id': widget.video.userId,
+          },
+        );
+
+        following = result == true;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   Future<void> toggleLike() async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to like videos.',
+      );
       return;
     }
 
-    if (widget.video.id.isEmpty || busy) return;
+    if (widget.video.id == null) return;
+    if (loadingLike) return;
 
     setState(() {
-      busy = true;
+      loadingLike = true;
     });
 
     try {
@@ -936,202 +917,106 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
         },
       );
 
-      final newLiked = result == true;
+      bool newLiked = !liked;
 
-      int newLikes = widget.video.likes;
-
-      if (newLiked && !liked) {
-        newLikes++;
-      } else if (!newLiked && liked) {
-        newLikes--;
+      if (result is bool) {
+        newLiked = result;
       }
 
-      if (newLikes < 0) newLikes = 0;
+      setState(() {
+        liked = newLiked;
 
-      if (mounted) {
-        setState(() {
-          liked = newLiked;
-          busy = false;
-        });
-
-        widget.onChanged(
-          widget.video.copyWith(
-            likes: newLikes,
-          ),
-        );
-      }
+        if (liked) {
+          likes++;
+        } else if (likes > 0) {
+          likes--;
+        }
+      });
     } catch (e) {
+      showMessage(
+        context,
+        'Could not update like.',
+      );
+    } finally {
       if (mounted) {
         setState(() {
-          busy = false;
+          loadingLike = false;
         });
-
-        snack(context, '$e');
       }
     }
   }
 
   Future<void> toggleFollow() async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to follow creators.',
+      );
       return;
     }
 
-    if (widget.video.userId.isEmpty || busy) {
-      return;
-    }
-
-    setState(() {
-      busy = true;
-    });
+    if (widget.video.userId.isEmpty) return;
 
     try {
       final result = await supabase.rpc(
         'toggle_follow',
         params: {
-          'p_target_user_id':
-              widget.video.userId,
+          'p_target_user_id': widget.video.userId,
         },
       );
 
-      if (mounted) {
-        setState(() {
-          following = result == true;
-          busy = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          busy = false;
-        });
-
-        snack(context, '$e');
-      }
+      setState(() {
+        following = result is bool ? result : !following;
+      });
+    } catch (_) {
+      showMessage(
+        context,
+        'Could not update follow status.',
+      );
     }
   }
 
-  Future<void> addComment() async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
-      return;
-    }
-
-    if (widget.video.id.isEmpty) {
-      snack(
+  void openComments() {
+    if (!isLoggedIn) {
+      requireLogin(
         context,
-        arabic
-            ? 'هذا الفيديو موجود في التخزين فقط ولا يملك سجلاً في جدول videos.'
-            : 'This video exists in Storage but has no videos table record.',
+        message: 'Login to view and add comments.',
       );
       return;
     }
 
-    final controller = TextEditingController();
+    if (widget.video.id == null) return;
 
-    final comment = await showDialog<String>(
+    showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            arabic
-                ? 'إضافة تعليق'
-                : 'Add comment',
-          ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 4,
-            decoration: InputDecoration(
-              hintText: arabic
-                  ? 'اكتب تعليقك...'
-                  : 'Write your comment...',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text(
-                arabic ? 'إلغاء' : 'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  controller.text.trim(),
-                );
-              },
-              child: Text(
-                arabic ? 'نشر' : 'Post',
-              ),
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF151515),
+      builder: (_) {
+        return CommentsSheet(
+          videoId: widget.video.id,
+          onCommentAdded: () {
+            setState(() {
+              comments++;
+            });
+          },
         );
       },
     );
-
-    controller.dispose();
-
-    if (comment == null || comment.isEmpty) {
-      return;
-    }
-
-    try {
-      await supabase.rpc(
-        'add_video_comment',
-        params: {
-          'p_video_id': widget.video.id,
-          'p_text': comment,
-        },
-      );
-
-      widget.onChanged(
-        widget.video.copyWith(
-          comments: widget.video.comments + 1,
-        ),
-      );
-
-      if (mounted) {
-        snack(
-          context,
-          arabic
-              ? 'تم نشر التعليق'
-              : 'Comment posted',
-        );
-      }
-    } catch (e) {
-      if (mounted) snack(context, '$e');
-    }
   }
 
   Future<void> shareVideo() async {
-    await showDialog(
+    showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(
-            arabic
-                ? 'رابط الفيديو'
-                : 'Video link',
-          ),
+          title: const Text('Share video'),
           content: SelectableText(
             widget.video.videoUrl,
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: Text(
-                arabic ? 'إغلاق' : 'Close',
-              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close'),
             ),
           ],
         );
@@ -1139,440 +1024,328 @@ class _VideoFeedItemState extends State<VideoFeedItem> {
     );
   }
 
-  void disposePlayer() {
-    final old = player;
-    player = null;
-    initialized = false;
-    old?.dispose();
-  }
-
   @override
   void dispose() {
-    disposePlayer();
+    controller?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = player;
+    final videoController = controller;
 
-    return GestureDetector(
-      onTap: () {
-        if (p == null || !initialized) return;
-
-        if (p.value.isPlaying) {
-          p.pause();
-        } else {
-          p.play();
-        }
-
-        setState(() {});
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Container(color: Colors.black),
-
-          if (initialized && p != null)
-            Center(
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: p.value.size.width,
-                  height: p.value.size.height,
-                  child: VideoPlayer(p),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Container(
+          color: Colors.black,
+          child: initialized && videoController != null
+              ? FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: videoController.value.size.width,
+                    height: videoController.value.size.height,
+                    child: VideoPlayer(videoController),
+                  ),
+                )
+              : const Center(
+                  child: CircularProgressIndicator(),
                 ),
-              ),
-            )
-          else if (failed)
-            const Center(
-              child: Icon(
-                Icons.error_outline,
-                size: 70,
-              ),
-            )
-          else
-            const Center(
-              child: CircularProgressIndicator(),
+        ),
+
+        const DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.black54,
+                Colors.transparent,
+                Colors.black87,
+              ],
             ),
+          ),
+        ),
 
-          const _VideoGradient(),
-
-          Positioned(
-            left: 16,
-            right: 90,
-            bottom: 24,
-            child: Column(
-              crossAxisAlignment:
-                  CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  '@RealityDuel',
-                  style: TextStyle(
-                    fontSize: 17,
+        Positioned(
+          left: 16,
+          right: 90,
+          bottom: 40,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.video.displayName.isNotEmpty)
+                Text(
+                  widget.video.displayName,
+                  style: const TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
+              if (widget.video.username.isNotEmpty)
                 Text(
-                  widget.video.caption.isEmpty
-                      ? (arabic
-                          ? 'العالم هو ساحتك.'
-                          : 'The World Is Your Arena.')
-                      : widget.video.caption,
-                  maxLines: 5,
-                  overflow: TextOverflow.ellipsis,
+                  '@${widget.video.username}',
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
+                    color: Colors.white70,
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          Positioned(
-            right: 8,
-            bottom: 90,
-            child: Column(
-              children: [
-                ActionButton(
-                  icon: liked
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  label: '${widget.video.likes}',
-                  onTap: toggleLike,
+              if (widget.video.caption.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    widget.video.caption,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                    ),
+                  ),
                 ),
-                ActionButton(
-                  icon: Icons.comment_outlined,
-                  label: '${widget.video.comments}',
-                  onTap: addComment,
-                ),
-                ActionButton(
-                  icon: Icons.share_outlined,
-                  label: arabic
-                      ? 'مشاركة'
-                      : 'Share',
-                  onTap: shareVideo,
-                ),
-                ActionButton(
-                  icon: following
-                      ? Icons.person
-                      : Icons.person_add_alt_1,
-                  label: following
-                      ? (arabic
-                          ? 'متابَع'
-                          : 'Following')
-                      : (arabic
-                          ? 'متابعة'
-                          : 'Follow'),
-                  onTap: toggleFollow,
-                ),
-                ActionButton(
-                  icon: Icons.visibility_outlined,
-                  label: '${widget.video.views}',
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _VideoGradient extends StatelessWidget {
-  const _VideoGradient();
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.black.withOpacity(.45),
-              Colors.transparent,
-              Colors.black.withOpacity(.75),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
 
-class ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const ActionButton({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(
-        bottom: 14,
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(50),
-            child: CircleAvatar(
-              radius: 25,
-              backgroundColor:
-                  Colors.black.withOpacity(.5),
-              child: Icon(
-                icon,
-                size: 27,
+        Positioned(
+          right: 12,
+          bottom: 42,
+          child: Column(
+            children: [
+              _ActionButton(
+                icon: liked
+                    ? Icons.favorite
+                    : Icons.favorite_border,
+                label: formatCount(likes),
+                active: liked,
+                onTap: toggleLike,
               ),
-            ),
+              const SizedBox(height: 18),
+              _ActionButton(
+                icon: Icons.comment,
+                label: formatCount(comments),
+                onTap: openComments,
+              ),
+              const SizedBox(height: 18),
+              _ActionButton(
+                icon: following
+                    ? Icons.person
+                    : Icons.person_add,
+                label: following ? 'Following' : 'Follow',
+                onTap: toggleFollow,
+              ),
+              const SizedBox(height: 18),
+              _ActionButton(
+                icon: Icons.share,
+                label: 'Share',
+                onTap: shareVideo,
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-/* ============================================================
-   UPLOAD VIDEO
-   ============================================================ */
+// ============================================================
+// COMMENTS
+// ============================================================
 
-class UploadVideoPage extends StatefulWidget {
-  final String language;
+class CommentsSheet extends StatefulWidget {
+  final dynamic videoId;
+  final VoidCallback onCommentAdded;
 
-  const UploadVideoPage({
+  const CommentsSheet({
     super.key,
-    required this.language,
+    required this.videoId,
+    required this.onCommentAdded,
   });
 
   @override
-  State<UploadVideoPage> createState() =>
-      _UploadVideoPageState();
+  State<CommentsSheet> createState() => _CommentsSheetState();
 }
 
-class _UploadVideoPageState
-    extends State<UploadVideoPage> {
-  final captionController =
-      TextEditingController();
+class _CommentsSheetState extends State<CommentsSheet> {
+  final TextEditingController controller = TextEditingController();
 
-  PlatformFile? selectedFile;
-  bool uploading = false;
+  List<Map<String, dynamic>> comments = [];
 
-  bool get arabic => isArabic(widget.language);
+  bool loading = true;
+  bool sending = false;
 
   @override
-  void dispose() {
-    captionController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    loadComments();
   }
 
-  Future<void> pickVideo() async {
+  Future<void> loadComments() async {
     try {
-      final result =
-          await FilePicker.platform.pickFiles(
-        type: FileType.video,
-        withData: true,
-      );
+      final result = await supabase
+          .from('video_comments')
+          .select()
+          .eq(
+            'video_id',
+            widget.videoId,
+          )
+          .order(
+            'created_at',
+            ascending: false,
+          );
 
-      if (result == null ||
-          result.files.isEmpty) {
-        return;
-      }
+      if (!mounted) return;
 
       setState(() {
-        selectedFile = result.files.first;
+        comments = result
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        loading = false;
       });
-    } catch (e) {
-      if (mounted) snack(context, '$e');
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
     }
   }
 
-  Future<void> uploadVideo() async {
-    final user = supabase.auth.currentUser;
+  Future<void> sendComment() async {
+    final text = controller.text.trim();
 
-    if (user == null) {
-      await requireLogin(
-        context,
-        widget.language,
-      );
-      return;
-    }
+    if (text.isEmpty) return;
 
-    if (selectedFile == null ||
-        selectedFile!.bytes == null) {
-      snack(
-        context,
-        arabic
-            ? 'اختر فيديو أولاً'
-            : 'Choose a video first',
-      );
+    if (!isLoggedIn) {
+      requireLogin(context);
       return;
     }
 
     setState(() {
-      uploading = true;
+      sending = true;
     });
 
     try {
-      final extension =
-          selectedFile!.extension
-                  ?.toLowerCase() ??
-              'mp4';
-
-      final storagePath =
-          '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$extension';
-
-      await supabase.storage
-          .from('videos')
-          .uploadBinary(
-            storagePath,
-            selectedFile!.bytes!,
-            fileOptions: FileOptions(
-              contentType:
-                  _contentType(extension),
-              upsert: false,
-            ),
-          );
-
-      final publicUrl = supabase.storage
-          .from('videos')
-          .getPublicUrl(storagePath);
-
       await supabase.rpc(
-        'create_video_record',
+        'add_video_comment',
         params: {
-          'p_storage_path': storagePath,
-          'p_video_url': publicUrl,
-          'p_caption':
-              captionController.text.trim(),
+          'p_video_id': widget.videoId,
+          'p_comment': text,
         },
       );
 
-      if (!mounted) return;
+      controller.clear();
 
-      snack(
+      widget.onCommentAdded();
+
+      await loadComments();
+    } catch (_) {
+      showMessage(
         context,
-        arabic
-            ? 'تم رفع الفيديو ونشره بنجاح'
-            : 'Video uploaded and published successfully',
+        'Could not add comment.',
       );
-
-      Navigator.pop(context);
-    } catch (e) {
-      if (mounted) {
-        snack(context, '$e');
-      }
     } finally {
       if (mounted) {
         setState(() {
-          uploading = false;
+          sending = false;
         });
       }
     }
   }
 
-  String _contentType(String extension) {
-    switch (extension) {
-      case 'mov':
-        return 'video/quicktime';
-      case 'webm':
-        return 'video/webm';
-      case 'm4v':
-        return 'video/x-m4v';
-      case 'avi':
-        return 'video/x-msvideo';
-      default:
-        return 'video/mp4';
-    }
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic
-                ? 'رفع فيديو'
-                : 'Upload Video',
-          ),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(20),
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: bottom,
+      ),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * .72,
+        child: Column(
           children: [
-            const Icon(
-              Icons.video_camera_back_outlined,
-              size: 90,
-            ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
-              onPressed:
-                  uploading ? null : pickVideo,
-              icon: const Icon(
-                Icons.video_library_outlined,
-              ),
-              label: Text(
-                selectedFile == null
-                    ? (arabic
-                        ? 'اختيار فيديو'
-                        : 'Choose video')
-                    : selectedFile!.name,
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Comments',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: captionController,
-              maxLines: 5,
-              decoration: InputDecoration(
-                labelText:
-                    arabic ? 'الوصف' : 'Caption',
-                hintText: arabic
-                    ? 'اكتب وصف الفيديو...'
-                    : 'Write a caption...',
-                border:
-                    const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 20),
-            FilledButton.icon(
-              onPressed:
-                  uploading ? null : uploadVideo,
-              icon: uploading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
+            Expanded(
+              child: loading
+                  ? const Center(
+                      child: CircularProgressIndicator(),
                     )
-                  : const Icon(
-                      Icons.cloud_upload,
+                  : comments.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No comments yet.',
+                          ),
+                        )
+                      : ListView.builder(
+                          itemCount: comments.length,
+                          itemBuilder: (context, index) {
+                            final item = comments[index];
+
+                            return ListTile(
+                              leading: const CircleAvatar(
+                                child: Icon(Icons.person),
+                              ),
+                              title: Text(
+                                safeString(
+                                  item['username'] ??
+                                      item['user_name'] ??
+                                      'User',
+                                ),
+                              ),
+                              subtitle: Text(
+                                safeString(
+                                  item['comment'] ??
+                                      item['content'] ??
+                                      item['text'],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        hintText: 'Write a comment...',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-              label: Text(
-                arabic
-                    ? 'رفع ونشر'
-                    : 'Upload & Publish',
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: sending ? null : sendComment,
+                    icon: sending
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.send),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1582,28 +1355,20 @@ class _UploadVideoPageState
   }
 }
 
-/* ============================================================
-   DUELS
-   ============================================================ */
+// ============================================================
+// DUELS
+// ============================================================
 
 class DuelsPage extends StatefulWidget {
-  final String language;
-
-  const DuelsPage({
-    super.key,
-    required this.language,
-  });
+  const DuelsPage({super.key});
 
   @override
-  State<DuelsPage> createState() =>
-      _DuelsPageState();
+  State<DuelsPage> createState() => _DuelsPageState();
 }
 
 class _DuelsPageState extends State<DuelsPage> {
-  List<Map<String, dynamic>> duels = [];
   bool loading = true;
-
-  bool get arabic => isArabic(widget.language);
+  List<Map<String, dynamic>> duels = [];
 
   @override
   void initState() {
@@ -1612,162 +1377,128 @@ class _DuelsPageState extends State<DuelsPage> {
   }
 
   Future<void> loadDuels() async {
-    setState(() {
-      loading = true;
-    });
-
     try {
       final result = await supabase
           .from('duels')
-          .select(
-            'id,creator_id,title,description,challenge_type,status,created_at',
-          )
+          .select()
           .order(
             'created_at',
             ascending: false,
           );
 
-      if (mounted) {
-        setState(() {
-          duels = (result as List)
-              .map(
-                (e) => Map<String, dynamic>.from(e),
-              )
-              .toList();
-          loading = false;
-        });
-      }
+      if (!mounted) return;
+
+      setState(() {
+        duels = result
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        loading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-        snack(context, '$e');
-      }
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
     }
   }
 
-  Future<void> createDuel() async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+  void createDuelDialog() {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to create a Duel.',
+      );
       return;
     }
 
-    final title = TextEditingController();
-    final description =
-        TextEditingController();
-    final challengeType =
-        TextEditingController(text: 'video');
+    final titleController = TextEditingController();
+    final descriptionController = TextEditingController();
 
-    final data =
-        await showDialog<List<String>>(
+    showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(
-            arabic
-                ? 'إنشاء مواجهة'
-                : 'Create Duel',
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  controller: title,
-                  decoration: InputDecoration(
-                    labelText:
-                        arabic ? 'العنوان' : 'Title',
-                  ),
+          title: const Text('Create Duel'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: description,
-                  maxLines: 4,
-                  decoration: InputDecoration(
-                    labelText:
-                        arabic ? 'الوصف' : 'Description',
-                  ),
+              ),
+              TextField(
+                controller: descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
                 ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: challengeType,
-                  decoration: InputDecoration(
-                    labelText: arabic
-                        ? 'نوع التحدي'
-                        : 'Challenge type',
-                  ),
-                ),
-              ],
-            ),
+                maxLines: 3,
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
-              child: Text(
-                arabic ? 'إلغاء' : 'Cancel',
-              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  [
-                    title.text.trim(),
-                    description.text.trim(),
-                    challengeType.text.trim(),
-                  ],
-                );
+              onPressed: () async {
+                final title = titleController.text.trim();
+                final description =
+                    descriptionController.text.trim();
+
+                if (title.isEmpty) return;
+
+                try {
+                  await supabase.rpc(
+                    'create_duel',
+                    params: {
+                      'p_title': title,
+                      'p_description': description,
+                      'p_challenge_type': 'video',
+                    },
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+
+                  await loadDuels();
+
+                  if (mounted) {
+                    showMessage(
+                      context,
+                      'Duel created successfully.',
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    showMessage(
+                      context,
+                      'Could not create Duel.',
+                    );
+                  }
+                }
               },
-              child: Text(
-                arabic ? 'إنشاء' : 'Create',
-              ),
+              child: const Text('Create'),
             ),
           ],
         );
       },
     );
-
-    title.dispose();
-    description.dispose();
-    challengeType.dispose();
-
-    if (data == null ||
-        data.length != 3 ||
-        data[0].isEmpty) {
-      return;
-    }
-
-    try {
-      await supabase.rpc(
-        'create_duel',
-        params: {
-          'p_title': data[0],
-          'p_description': data[1],
-          'p_challenge_type':
-              data[2].isEmpty
-                  ? 'video'
-                  : data[2],
-        },
-      );
-
-      await loadDuels();
-    } catch (e) {
-      if (mounted) snack(context, '$e');
-    }
   }
 
-  Future<void> joinDuel(String duelId) async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+  Future<void> joinDuel(dynamic duelId) async {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to join a Duel.',
+      );
       return;
     }
-
-    if (duelId.isEmpty) return;
 
     try {
       await supabase.rpc(
@@ -1777,136 +1508,121 @@ class _DuelsPageState extends State<DuelsPage> {
         },
       );
 
-      if (mounted) {
-        snack(
-          context,
-          arabic
-              ? 'تم الانضمام إلى المواجهة'
-              : 'Joined the duel',
-        );
-      }
-    } catch (e) {
-      if (mounted) snack(context, '$e');
+      showMessage(
+        context,
+        'You joined the Duel.',
+      );
+    } catch (_) {
+      showMessage(
+        context,
+        'Could not join this Duel.',
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic ? 'المواجهات' : 'Duels',
-          ),
-          actions: [
-            IconButton(
-              onPressed: loadDuels,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        floatingActionButton:
-            FloatingActionButton.extended(
-          onPressed: createDuel,
-          icon: const Icon(Icons.add),
-          label: Text(
-            arabic
-                ? 'مواجهة جديدة'
-                : 'New Duel',
-          ),
-        ),
-        body: loading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : duels.isEmpty
-                ? Center(
-                    child: Text(
-                      arabic
-                          ? 'لا توجد مواجهات بعد'
-                          : 'No duels yet',
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: loadDuels,
-                    child: ListView.builder(
-                      padding:
-                          const EdgeInsets.all(12),
-                      itemCount: duels.length,
-                      itemBuilder:
-                          (context, index) {
-                        final duel =
-                            duels[index];
-
-                        return Card(
-                          child: ListTile(
-                            leading:
-                                const CircleAvatar(
-                              child: Icon(
-                                Icons.sports_mma,
-                              ),
-                            ),
-                            title: Text(
-                              '${duel['title'] ?? ''}',
-                              style:
-                                  const TextStyle(
-                                fontWeight:
-                                    FontWeight.bold,
-                              ),
-                            ),
-                            subtitle: Text(
-                              '${duel['description'] ?? ''}\n'
-                              '${duel['challenge_type'] ?? ''}',
-                            ),
-                            isThreeLine: true,
-                            trailing:
-                                FilledButton(
-                              onPressed: () =>
-                                  joinDuel(
-                                '${duel['id'] ?? ''}',
-                              ),
-                              child: Text(
-                                arabic
-                                    ? 'انضم'
-                                    : 'Join',
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Duels'),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: createDuelDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Create Duel'),
+      ),
+      body: loading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : duels.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No Duels available yet.',
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: loadDuels,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: duels.length,
+                    itemBuilder: (context, index) {
+                      final duel = duels[index];
+
+                      final title = safeString(
+                        duel['title'],
+                      );
+
+                      final description = safeString(
+                        duel['description'],
+                      );
+
+                      return Card(
+                        margin: const EdgeInsets.only(
+                          bottom: 12,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title.isEmpty
+                                    ? 'Reality Duel'
+                                    : title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (description.isNotEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(
+                                    top: 8,
+                                  ),
+                                  child: Text(
+                                    description,
+                                  ),
+                                ),
+                              const SizedBox(height: 12),
+                              FilledButton(
+                                onPressed: () => joinDuel(
+                                  duel['id'],
+                                ),
+                                child: const Text(
+                                  'Join Duel',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }
 
-/* ============================================================
-   DISCOVER TALENT
-   ============================================================ */
+// ============================================================
+// DISCOVER TALENT
+// ============================================================
 
 class DiscoverPage extends StatefulWidget {
-  final String language;
-
-  const DiscoverPage({
-    super.key,
-    required this.language,
-  });
+  const DiscoverPage({super.key});
 
   @override
-  State<DiscoverPage> createState() =>
-      _DiscoverPageState();
+  State<DiscoverPage> createState() => _DiscoverPageState();
 }
 
-class _DiscoverPageState
-    extends State<DiscoverPage> {
-  List<Map<String, dynamic>> profiles = [];
-  bool loading = true;
-  String search = '';
+class _DiscoverPageState extends State<DiscoverPage> {
+  final TextEditingController searchController =
+      TextEditingController();
 
-  bool get arabic => isArabic(widget.language);
+  bool loading = true;
+  List<Map<String, dynamic>> profiles = [];
 
   @override
   void initState() {
@@ -1920,310 +1636,144 @@ class _DiscoverPageState
     });
 
     try {
-      final result = await supabase
+      var query = supabase
           .from('profiles')
-          .select(
-            'user_id,display_name,username,bio,country,avatar_url,role,talent_score,follower_count,following_count,wins_count',
-          )
-          .order(
-            'talent_score',
-            ascending: false,
-          );
+          .select();
 
-      if (mounted) {
-        setState(() {
-          profiles = (result as List)
-              .map(
-                (e) => Map<String, dynamic>.from(e),
-              )
-              .toList();
-          loading = false;
-        });
+      final search = searchController.text.trim();
+
+      if (search.isNotEmpty) {
+        query = query.or(
+          'username.ilike.%$search%,'
+          'display_name.ilike.%$search%,'
+          'country.ilike.%$search%',
+        );
       }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-        snack(context, '$e');
-      }
+
+      final result = await query.limit(50);
+
+      if (!mounted) return;
+
+      setState(() {
+        profiles = result
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
     }
   }
 
   @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final query = search.trim().toLowerCase();
-
-    final filtered = profiles.where((profile) {
-      if (query.isEmpty) return true;
-
-      final text =
-          '${profile['display_name'] ?? ''} '
-          '${profile['username'] ?? ''} '
-          '${profile['country'] ?? ''}'
-              .toLowerCase();
-
-      return text.contains(query);
-    }).toList();
-
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic
-                ? 'اكتشف المواهب'
-                : 'Discover Talent',
-          ),
-        ),
-        body: loading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : RefreshIndicator(
-                onRefresh: loadProfiles,
-                child: ListView(
-                  padding:
-                      const EdgeInsets.all(14),
-                  children: [
-                    TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          search = value;
-                        });
-                      },
-                      decoration:
-                          InputDecoration(
-                        prefixIcon:
-                            const Icon(
-                          Icons.search,
-                        ),
-                        hintText: arabic
-                            ? 'ابحث عن موهبة...'
-                            : 'Search talent...',
-                        border:
-                            const OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    if (filtered.isEmpty)
-                      Padding(
-                        padding:
-                            const EdgeInsets.all(30),
-                        child: Center(
-                          child: Text(
-                            arabic
-                                ? 'لا توجد نتائج'
-                                : 'No results',
-                          ),
-                        ),
-                      ),
-                    ...filtered.map(
-                      (profile) => ProfileCard(
-                        profile: profile,
-                        language:
-                            widget.language,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  PublicProfilePage(
-                                profile: profile,
-                                language:
-                                    widget.language,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Discover Talent'),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: searchController,
+              onSubmitted: (_) => loadProfiles(),
+              decoration: InputDecoration(
+                hintText: 'Search talent...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  onPressed: loadProfiles,
+                  icon: const Icon(Icons.arrow_forward),
                 ),
+                border: const OutlineInputBorder(),
               ),
-      ),
-    );
-  }
-}
-
-class ProfileCard extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  final String language;
-  final VoidCallback onTap;
-
-  const ProfileCard({
-    super.key,
-    required this.profile,
-    required this.language,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final avatar =
-        '${profile['avatar_url'] ?? ''}';
-
-    final name =
-        '${profile['display_name'] ?? ''}'
-                .trim()
-                .isEmpty
-            ? '@${profile['username'] ?? 'talent'}'
-            : '${profile['display_name']}';
-
-    return Card(
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          radius: 28,
-          backgroundImage: avatar.isNotEmpty
-              ? NetworkImage(avatar)
-              : null,
-          child: avatar.isEmpty
-              ? const Icon(Icons.person)
-              : null,
-        ),
-        title: Text(
-          name,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
+            ),
           ),
-        ),
-        subtitle: Text(
-          '@${profile['username'] ?? ''}\n'
-          '${profile['country'] ?? ''} • '
-          '${t(
-            language,
-            en: 'Score',
-            ar: 'النقاط',
-          )}: '
-          '${profile['talent_score'] ?? 0}',
-        ),
-        isThreeLine: true,
-        trailing:
-            const Icon(Icons.chevron_right),
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   PUBLIC PROFILE
-   ============================================================ */
-
-class PublicProfilePage
-    extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  final String language;
-
-  const PublicProfilePage({
-    super.key,
-    required this.profile,
-    required this.language,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final arabic = isArabic(language);
-    final avatar =
-        '${profile['avatar_url'] ?? ''}';
-
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic
-                ? 'ملف الموهبة'
-                : 'Talent Profile',
-          ),
-        ),
-        body: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 60,
-                backgroundImage: avatar.isNotEmpty
-                    ? NetworkImage(avatar)
-                    : null,
-                child: avatar.isEmpty
-                    ? const Icon(
-                        Icons.person,
-                        size: 60,
+          Expanded(
+            child: loading
+                ? const Center(
+                    child: CircularProgressIndicator(),
+                  )
+                : profiles.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No talent found.',
+                        ),
                       )
-                    : null,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Center(
-              child: Text(
-                '${profile['display_name'] ?? profile['username'] ?? ''}',
-                style: const TextStyle(
-                  fontSize: 27,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Center(
-              child: Text(
-                '@${profile['username'] ?? ''}',
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              '${profile['bio'] ?? ''}',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 25),
-            StatsRow(
-              items: [
-                StatItem(
-                  arabic
-                      ? 'المتابعون'
-                      : 'Followers',
-                  '${profile['follower_count'] ?? 0}',
-                ),
-                StatItem(
-                  arabic
-                      ? 'المتابَعون'
-                      : 'Following',
-                  '${profile['following_count'] ?? 0}',
-                ),
-                StatItem(
-                  arabic
-                      ? 'الانتصارات'
-                      : 'Wins',
-                  '${profile['wins_count'] ?? 0}',
-                ),
-                StatItem(
-                  arabic
-                      ? 'النقاط'
-                      : 'Score',
-                  '${profile['talent_score'] ?? 0}',
-                ),
-              ],
-            ),
-          ],
-        ),
+                    : RefreshIndicator(
+                        onRefresh: loadProfiles,
+                        child: ListView.builder(
+                          itemCount: profiles.length,
+                          itemBuilder: (context, index) {
+                            final profile = profiles[index];
+
+                            final name = safeString(
+                              profile['display_name'],
+                            );
+
+                            final username = safeString(
+                              profile['username'],
+                            );
+
+                            final country = safeString(
+                              profile['country'],
+                            );
+
+                            final avatar = safeString(
+                              profile['avatar_url'],
+                            );
+
+                            return ListTile(
+                              leading: _Avatar(
+                                url: avatar,
+                                radius: 28,
+                              ),
+                              title: Text(
+                                name.isEmpty
+                                    ? username.isEmpty
+                                        ? 'Talent'
+                                        : '@$username'
+                                    : name,
+                              ),
+                              subtitle: Text(
+                                [
+                                  if (username.isNotEmpty)
+                                    '@$username',
+                                  if (country.isNotEmpty)
+                                    country,
+                                ].join(' • '),
+                              ),
+                              trailing: Text(
+                                '${formatCount(profile['talent_score'] ?? 0)} score',
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/* ============================================================
-   OPPORTUNITIES
-   ============================================================ */
+// ============================================================
+// OPPORTUNITIES
+// ============================================================
 
-class OpportunitiesPage
-    extends StatefulWidget {
-  final String language;
-
-  const OpportunitiesPage({
-    super.key,
-    required this.language,
-  });
+class OpportunitiesPage extends StatefulWidget {
+  const OpportunitiesPage({super.key});
 
   @override
   State<OpportunitiesPage> createState() =>
@@ -2232,12 +1782,8 @@ class OpportunitiesPage
 
 class _OpportunitiesPageState
     extends State<OpportunitiesPage> {
-  List<Map<String, dynamic>> opportunities =
-      [];
-
   bool loading = true;
-
-  bool get arabic => isArabic(widget.language);
+  List<Map<String, dynamic>> opportunities = [];
 
   @override
   void initState() {
@@ -2246,438 +1792,322 @@ class _OpportunitiesPageState
   }
 
   Future<void> loadOpportunities() async {
-    setState(() {
-      loading = true;
-    });
-
     try {
       final result = await supabase
           .from('opportunities')
-          .select(
-            'id,creator_id,title,company_name,opportunity_type,description,location,deadline,status,created_at',
-          )
+          .select()
           .order(
             'created_at',
             ascending: false,
           );
 
-      if (mounted) {
-        setState(() {
-          opportunities = (result as List)
-              .map(
-                (e) => Map<String, dynamic>.from(e),
-              )
-              .toList();
-          loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-        snack(context, '$e');
-      }
+      if (!mounted) return;
+
+      setState(() {
+        opportunities = result
+            .whereType<Map<String, dynamic>>()
+            .toList();
+
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
     }
   }
 
-  Future<void> createOpportunity() async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+  void createOpportunityDialog() {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to create an opportunity.',
+      );
       return;
     }
 
     final title = TextEditingController();
-    final company =
-        TextEditingController();
-    final type =
-        TextEditingController(text: 'job');
-    final description =
-        TextEditingController();
-    final location =
-        TextEditingController();
-    final deadline =
-        TextEditingController();
+    final company = TextEditingController();
+    final description = TextEditingController();
+    final location = TextEditingController();
 
-    final data =
-        await showDialog<List<String>>(
+    showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(
-            arabic
-                ? 'نشر فرصة'
-                : 'Post Opportunity',
-          ),
+          title: const Text('Create Opportunity'),
           content: SingleChildScrollView(
             child: Column(
               children: [
-                DialogField(
+                TextField(
                   controller: title,
-                  label:
-                      arabic ? 'العنوان' : 'Title',
+                  decoration: const InputDecoration(
+                    labelText: 'Title',
+                  ),
                 ),
-                DialogField(
+                TextField(
                   controller: company,
-                  label: arabic
-                      ? 'الشركة / المؤسسة'
-                      : 'Company / Institution',
+                  decoration: const InputDecoration(
+                    labelText: 'Company / Institution',
+                  ),
                 ),
-                DialogField(
-                  controller: type,
-                  label: arabic
-                      ? 'نوع الفرصة'
-                      : 'Opportunity type',
-                ),
-                DialogField(
+                TextField(
                   controller: description,
-                  label:
-                      arabic ? 'الوصف' : 'Description',
+                  decoration: const InputDecoration(
+                    labelText: 'Description',
+                  ),
                   maxLines: 4,
                 ),
-                DialogField(
+                TextField(
                   controller: location,
-                  label:
-                      arabic ? 'الموقع' : 'Location',
-                ),
-                DialogField(
-                  controller: deadline,
-                  label: arabic
-                      ? 'الموعد النهائي YYYY-MM-DD'
-                      : 'Deadline YYYY-MM-DD',
+                  decoration: const InputDecoration(
+                    labelText: 'Location',
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
-              child: Text(
-                arabic ? 'إلغاء' : 'Cancel',
-              ),
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.pop(
-                  context,
-                  [
-                    title.text.trim(),
-                    company.text.trim(),
-                    type.text.trim(),
-                    description.text.trim(),
-                    location.text.trim(),
-                    deadline.text.trim(),
-                  ],
-                );
+              onPressed: () async {
+                if (title.text.trim().isEmpty) return;
+
+                try {
+                  await supabase.rpc(
+                    'create_opportunity',
+                    params: {
+                      'p_title': title.text.trim(),
+                      'p_company_name':
+                          company.text.trim(),
+                      'p_description':
+                          description.text.trim(),
+                      'p_opportunity_type': 'job',
+                      'p_location':
+                          location.text.trim(),
+                      'p_deadline': null,
+                    },
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+
+                  await loadOpportunities();
+
+                  if (mounted) {
+                    showMessage(
+                      context,
+                      'Opportunity created.',
+                    );
+                  }
+                } catch (_) {
+                  showMessage(
+                    context,
+                    'Could not create opportunity.',
+                  );
+                }
               },
-              child: Text(
-                arabic ? 'نشر' : 'Publish',
-              ),
+              child: const Text('Create'),
             ),
           ],
         );
       },
     );
-
-    title.dispose();
-    company.dispose();
-    type.dispose();
-    description.dispose();
-    location.dispose();
-    deadline.dispose();
-
-    if (data == null ||
-        data.length != 6 ||
-        data[0].isEmpty) {
-      return;
-    }
-
-    try {
-      await supabase.rpc(
-        'create_opportunity',
-        params: {
-          'p_title': data[0],
-          'p_company_name': data[1],
-          'p_opportunity_type': data[2],
-          'p_description': data[3],
-          'p_location': data[4],
-          'p_deadline':
-              data[5].isEmpty ? null : data[5],
-        },
-      );
-
-      await loadOpportunities();
-    } catch (e) {
-      if (mounted) snack(context, '$e');
-    }
   }
 
-  Future<void> apply(String opportunityId) async {
-    if (!await requireLogin(
-      context,
-      widget.language,
-    )) {
+  Future<void> apply(dynamic opportunityId) async {
+    if (!isLoggedIn) {
+      requireLogin(
+        context,
+        message: 'Login to apply for opportunities.',
+      );
       return;
     }
 
-    final message =
-        TextEditingController();
+    final user = supabase.auth.currentUser;
 
-    final text = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(
-            arabic
-                ? 'التقديم على الفرصة'
-                : 'Apply',
-          ),
-          content: TextField(
-            controller: message,
-            maxLines: 5,
-            decoration: InputDecoration(
-              hintText: arabic
-                  ? 'اكتب رسالة لصاحب الفرصة...'
-                  : 'Write a message...',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
-              child: Text(
-                arabic ? 'إلغاء' : 'Cancel',
-              ),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.pop(
-                context,
-                message.text.trim(),
-              ),
-              child: Text(
-                arabic ? 'إرسال' : 'Send',
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    message.dispose();
-
-    if (text == null) return;
+    if (user == null) return;
 
     try {
-      await supabase.rpc(
-        'apply_to_opportunity',
-        params: {
-          'p_opportunity_id':
-              opportunityId,
-          'p_message': text,
-        },
-      );
+      await supabase
+          .from('opportunity_applications')
+          .insert({
+        'opportunity_id': opportunityId,
+        'user_id': user.id,
+        'status': 'pending',
+      });
 
-      if (mounted) {
-        snack(
+      showMessage(
+        context,
+        'Application submitted.',
+      );
+    } catch (_) {
+      try {
+        await supabase.rpc(
+          'apply_to_opportunity',
+          params: {
+            'p_opportunity_id': opportunityId,
+          },
+        );
+
+        showMessage(
           context,
-          arabic
-              ? 'تم إرسال طلبك'
-              : 'Application sent',
+          'Application submitted.',
+        );
+      } catch (_) {
+        showMessage(
+          context,
+          'Could not submit application.',
         );
       }
-    } catch (e) {
-      if (mounted) snack(context, '$e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic ? 'الفرص' : 'Opportunities',
-          ),
-          actions: [
-            IconButton(
-              onPressed: loadOpportunities,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        floatingActionButton:
-            FloatingActionButton.extended(
-          onPressed: createOpportunity,
-          icon: const Icon(Icons.add_business),
-          label: Text(
-            arabic
-                ? 'نشر فرصة'
-                : 'Post Opportunity',
-          ),
-        ),
-        body: loading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : opportunities.isEmpty
-                ? Center(
-                    child: Text(
-                      arabic
-                          ? 'لا توجد فرص بعد'
-                          : 'No opportunities yet',
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh:
-                        loadOpportunities,
-                    child: ListView.builder(
-                      padding:
-                          const EdgeInsets.all(12),
-                      itemCount:
-                          opportunities.length,
-                      itemBuilder:
-                          (context, index) {
-                        final item =
-                            opportunities[index];
-
-                        return Card(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.all(
-                              14,
-                            ),
-                            child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment
-                                      .start,
-                              children: [
-                                Text(
-                                  '${item['title'] ?? ''}',
-                                  style:
-                                      const TextStyle(
-                                    fontSize: 19,
-                                    fontWeight:
-                                        FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(
-                                    height: 6),
-                                Text(
-                                  '${item['company_name'] ?? ''} • '
-                                  '${item['opportunity_type'] ?? ''}',
-                                ),
-                                const SizedBox(
-                                    height: 10),
-                                Text(
-                                  '${item['description'] ?? ''}',
-                                ),
-                                const SizedBox(
-                                    height: 8),
-                                Text(
-                                  '${arabic ? 'الموقع' : 'Location'}: '
-                                  '${item['location'] ?? '-'}',
-                                ),
-                                Text(
-                                  '${arabic ? 'الموعد النهائي' : 'Deadline'}: '
-                                  '${item['deadline'] ?? '-'}',
-                                ),
-                                const SizedBox(
-                                    height: 12),
-                                Align(
-                                  alignment:
-                                      AlignmentDirectional
-                                          .centerEnd,
-                                  child:
-                                      FilledButton.icon(
-                                    onPressed: () =>
-                                        apply(
-                                      '${item['id'] ?? ''}',
-                                    ),
-                                    icon: const Icon(
-                                      Icons.send,
-                                    ),
-                                    label: Text(
-                                      arabic
-                                          ? 'تقديم'
-                                          : 'Apply',
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Opportunities'),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: createOpportunityDialog,
+        icon: const Icon(Icons.add),
+        label: const Text('Create'),
+      ),
+      body: loading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : opportunities.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No opportunities available yet.',
                   ),
-      ),
+                )
+              : RefreshIndicator(
+                  onRefresh: loadOpportunities,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: opportunities.length,
+                    itemBuilder: (context, index) {
+                      final item = opportunities[index];
+
+                      final title =
+                          safeString(item['title']);
+
+                      final company = safeString(
+                        item['company_name'] ??
+                            item['company'],
+                      );
+
+                      final description = safeString(
+                        item['description'],
+                      );
+
+                      final location = safeString(
+                        item['location'],
+                      );
+
+                      return Card(
+                        margin: const EdgeInsets.only(
+                          bottom: 12,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title.isEmpty
+                                    ? 'Opportunity'
+                                    : title,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              if (company.isNotEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(
+                                    top: 5,
+                                  ),
+                                  child: Text(
+                                    company,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                    ),
+                                  ),
+                                ),
+                              if (description.isNotEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(
+                                    top: 10,
+                                  ),
+                                  child: Text(
+                                    description,
+                                  ),
+                                ),
+                              if (location.isNotEmpty)
+                                Padding(
+                                  padding:
+                                      const EdgeInsets.only(
+                                    top: 8,
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.location_on,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(location),
+                                    ],
+                                  ),
+                                ),
+                              const SizedBox(height: 12),
+                              FilledButton(
+                                onPressed: () =>
+                                    apply(item['id']),
+                                child: const Text(
+                                  'Apply',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }
 
-/* ============================================================
-   DIALOG FIELD
-   ============================================================ */
+// ============================================================
+// TALENT PROFILE
+// ============================================================
 
-class DialogField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
-  final int maxLines;
-
-  const DialogField({
-    super.key,
-    required this.controller,
-    required this.label,
-    this.maxLines = 1,
-  });
+class TalentProfilePage extends StatefulWidget {
+  const TalentProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding:
-          const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: controller,
-        maxLines: maxLines,
-        decoration: InputDecoration(
-          labelText: label,
-          border:
-              const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
+  State<TalentProfilePage> createState() =>
+      _TalentProfilePageState();
 }
 
-/* ============================================================
-   PROFILE
-   ============================================================ */
-
-class ProfilePage extends StatefulWidget {
-  final String language;
-
-  const ProfilePage({
-    super.key,
-    required this.language,
-  });
-
-  @override
-  State<ProfilePage> createState() =>
-      _ProfilePageState();
-}
-
-class _ProfilePageState
-    extends State<ProfilePage> {
-  Map<String, dynamic>? profile;
+class _TalentProfilePageState
+    extends State<TalentProfilePage> {
   bool loading = true;
-
-  bool get arabic => isArabic(widget.language);
+  Map<String, dynamic>? profile;
 
   @override
   void initState() {
@@ -2686,617 +2116,547 @@ class _ProfilePageState
   }
 
   Future<void> loadProfile() async {
-    setState(() {
-      loading = true;
-    });
-
-    final user =
-        supabase.auth.currentUser;
+    final user = supabase.auth.currentUser;
 
     if (user == null) {
+      if (!mounted) return;
+
       setState(() {
         loading = false;
+        profile = null;
       });
+
       return;
     }
 
     try {
       final result = await supabase
           .from('profiles')
-          .select(
-            'user_id,display_name,username,bio,country,avatar_url,role,talent_score,follower_count,following_count,wins_count',
+          .select()
+          .eq(
+            'user_id',
+            user.id,
           )
-          .eq('user_id', user.id)
           .maybeSingle();
 
-      if (mounted) {
-        setState(() {
-          profile = result == null
-              ? null
-              : Map<String, dynamic>.from(
-                  result,
-                );
-          loading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-        snack(context, '$e');
-      }
+      if (!mounted) return;
+
+      setState(() {
+        profile = result;
+        loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+      });
     }
+  }
+
+  void login() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const LoginPage(),
+      ),
+    );
+  }
+
+  void editProfile() {
+    if (!isLoggedIn) {
+      requireLogin(context);
+      return;
+    }
+
+    final user = supabase.auth.currentUser;
+
+    if (user == null) return;
+
+    final displayNameController =
+        TextEditingController(
+      text: safeString(
+        profile?['display_name'],
+      ),
+    );
+
+    final usernameController =
+        TextEditingController(
+      text: safeString(
+        profile?['username'],
+      ),
+    );
+
+    final bioController =
+        TextEditingController(
+      text: safeString(
+        profile?['bio'],
+      ),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Profile'),
+          content: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  controller: displayNameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Display name',
+                  ),
+                ),
+                TextField(
+                  controller: usernameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                  ),
+                ),
+                TextField(
+                  controller: bioController,
+                  decoration: const InputDecoration(
+                    labelText: 'Bio',
+                  ),
+                  maxLines: 4,
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                try {
+                  await supabase.from('profiles').upsert(
+                    {
+                      'user_id': user.id,
+                      'email': user.email,
+                      'display_name':
+                          displayNameController.text.trim(),
+                      'username':
+                          usernameController.text.trim(),
+                      'bio':
+                          bioController.text.trim(),
+                    },
+                    onConflict: 'user_id',
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+
+                  await loadProfile();
+                } catch (_) {
+                  showMessage(
+                    context,
+                    'Could not update profile.',
+                  );
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> logout() async {
     await supabase.auth.signOut();
 
-    if (mounted) {
-      setState(() {
-        profile = null;
-      });
-    }
-  }
+    if (!mounted) return;
 
-  Future<void> openLogin() async {
-    await Navigator.push(
+    setState(() {
+      profile = null;
+    });
+
+    showMessage(
       context,
-      MaterialPageRoute(
-        builder: (_) => LoginPage(
-          language: widget.language,
-        ),
-      ),
+      'Logged out.',
     );
+  }
 
-    if (mounted) {
-      await loadProfile();
+  @override
+  Widget build(BuildContext context) {
+    final user = supabase.auth.currentUser;
+
+    if (loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final user =
-        supabase.auth.currentUser;
-
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
+    if (user == null) {
+      return Scaffold(
         appBar: AppBar(
-          title: Text(
-            arabic
-                ? 'حسابي'
-                : 'My Profile',
+          title: const Text('Talent Profile'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircleAvatar(
+                  radius: 50,
+                  child: Icon(
+                    Icons.person,
+                    size: 50,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Guest User',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Watch videos without an account. Login to build your talent profile.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: login,
+                  icon: const Icon(Icons.login),
+                  label: const Text('Login / Sign up'),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            IconButton(
-              onPressed: loadProfile,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
         ),
-        body: loading
-            ? const Center(
-                child: CircularProgressIndicator(),
-              )
-            : user == null
-                ? GuestProfile(
-                    language: widget.language,
-                    onLogin: openLogin,
-                  )
-                : profile == null
-                    ? MissingProfile(
-                        language:
-                            widget.language,
-                        email:
-                            user.email ?? '',
-                      )
-                    : OwnProfile(
-                        profile: profile!,
-                        language:
-                            widget.language,
-                        email:
-                            user.email ?? '',
-                        onLogout: logout,
-                      ),
-      ),
+      );
+    }
+
+    final displayName = safeString(
+      profile?['display_name'],
     );
-  }
-}
 
-class GuestProfile extends StatelessWidget {
-  final String language;
-  final VoidCallback onLogin;
-
-  const GuestProfile({
-    super.key,
-    required this.language,
-    required this.onLogin,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final arabic = isArabic(language);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircleAvatar(
-              radius: 50,
-              child: Icon(
-                Icons.person_outline,
-                size: 50,
-              ),
-            ),
-            const SizedBox(height: 18),
-            Text(
-              arabic
-                  ? 'زائر'
-                  : 'Guest User',
-              style: const TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              arabic
-                  ? 'يمكنك مشاهدة الفيديوهات بدون تسجيل الدخول.'
-                  : 'You can watch videos without signing in.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: onLogin,
-              icon: const Icon(Icons.login),
-              label: Text(
-                arabic
-                    ? 'تسجيل الدخول'
-                    : 'Sign in',
-              ),
-            ),
-          ],
-        ),
-      ),
+    final username = safeString(
+      profile?['username'],
     );
-  }
-}
 
-class MissingProfile
-    extends StatelessWidget {
-  final String language;
-  final String email;
+    final bio = safeString(
+      profile?['bio'],
+    );
 
-  const MissingProfile({
-    super.key,
-    required this.language,
-    required this.email,
-  });
+    final avatar = safeString(
+      profile?['avatar_url'],
+    );
 
-  @override
-  Widget build(BuildContext context) {
-    final arabic = isArabic(language);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(30),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Talent Profile'),
+        actions: [
+          IconButton(
+            onPressed: editProfile,
+            icon: const Icon(Icons.edit),
+          ),
+          IconButton(
+            onPressed: logout,
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: loadProfile,
+        child: ListView(
+          padding: const EdgeInsets.all(20),
           children: [
-            const Icon(
-              Icons.person_search_outlined,
-              size: 70,
+            Center(
+              child: _Avatar(
+                url: avatar,
+                radius: 55,
+              ),
             ),
             const SizedBox(height: 15),
-            Text(
-              email,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              arabic
-                  ? 'تم تسجيل الدخول، لكن لم يتم العثور على ملفك في جدول profiles.'
-                  : 'You are signed in, but no profile was found in profiles.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class OwnProfile
-    extends StatelessWidget {
-  final Map<String, dynamic> profile;
-  final String language;
-  final String email;
-  final VoidCallback onLogout;
-
-  const OwnProfile({
-    super.key,
-    required this.profile,
-    required this.language,
-    required this.email,
-    required this.onLogout,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final arabic = isArabic(language);
-    final avatar =
-        '${profile['avatar_url'] ?? ''}';
-
-    final name =
-        '${profile['display_name'] ?? ''}'
-                .trim()
-                .isEmpty
-            ? '${profile['username'] ?? 'Talent'}'
-            : '${profile['display_name']}';
-
-    return ListView(
-      padding: const EdgeInsets.all(24),
-      children: [
-        Center(
-          child: CircleAvatar(
-            radius: 60,
-            backgroundImage: avatar.isNotEmpty
-                ? NetworkImage(avatar)
-                : null,
-            child: avatar.isEmpty
-                ? const Icon(
-                    Icons.person,
-                    size: 60,
-                  )
-                : null,
-          ),
-        ),
-        const SizedBox(height: 18),
-        Center(
-          child: Text(
-            name,
-            style: const TextStyle(
-              fontSize: 27,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ),
-        Center(
-          child: Text(
-            '@${profile['username'] ?? ''}',
-          ),
-        ),
-        const SizedBox(height: 6),
-        Center(
-          child: Text(email),
-        ),
-        const SizedBox(height: 20),
-        Text(
-          '${profile['bio'] ?? ''}',
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 25),
-        StatsRow(
-          items: [
-            StatItem(
-              arabic
-                  ? 'المتابعون'
-                  : 'Followers',
-              '${profile['follower_count'] ?? 0}',
-            ),
-            StatItem(
-              arabic
-                  ? 'المتابَعون'
-                  : 'Following',
-              '${profile['following_count'] ?? 0}',
-            ),
-            StatItem(
-              arabic
-                  ? 'الانتصارات'
-                  : 'Wins',
-              '${profile['wins_count'] ?? 0}',
-            ),
-            StatItem(
-              arabic
-                  ? 'النقاط'
-                  : 'Score',
-              '${profile['talent_score'] ?? 0}',
-            ),
-          ],
-        ),
-        const SizedBox(height: 25),
-        FilledButton.icon(
-          onPressed: onLogout,
-          icon: const Icon(Icons.logout),
-          label: Text(
-            arabic
-                ? 'تسجيل الخروج'
-                : 'Sign out',
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/* ============================================================
-   STATS
-   ============================================================ */
-
-class StatItem {
-  final String label;
-  final String value;
-
-  const StatItem(
-    this.label,
-    this.value,
-  );
-}
-
-class StatsRow extends StatelessWidget {
-  final List<StatItem> items;
-
-  const StatsRow({
-    super.key,
-    required this.items,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (int i = 0; i < items.length; i++)
-          Expanded(
-            child: Padding(
-              padding:
-                  EdgeInsetsDirectional.only(
-                end:
-                    i == items.length - 1
-                        ? 0
-                        : 5,
-              ),
-              child: Card(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 3,
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        items[i].value,
-                        style:
-                            const TextStyle(
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      Text(
-                        items[i].label,
-                        textAlign:
-                            TextAlign.center,
-                        style:
-                            const TextStyle(
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
+            Center(
+              child: Text(
+                displayName.isEmpty
+                    ? 'Talent'
+                    : displayName,
+                style: const TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-          ),
-      ],
+            if (username.isNotEmpty)
+              Center(
+                child: Text(
+                  '@$username',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Center(
+              child: Text(
+                user.email ?? '',
+                style: const TextStyle(
+                  color: Colors.white54,
+                ),
+              ),
+            ),
+            if (bio.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(
+                  top: 18,
+                ),
+                child: Text(
+                  bio,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            const SizedBox(height: 25),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    _StatRow(
+                      title: 'Talent Score',
+                      value: formatCount(
+                        profile?['talent_score'] ?? 0,
+                      ),
+                    ),
+                    _StatRow(
+                      title: 'Followers',
+                      value: formatCount(
+                        profile?['follower_count'] ?? 0,
+                      ),
+                    ),
+                    _StatRow(
+                      title: 'Following',
+                      value: formatCount(
+                        profile?['following_count'] ?? 0,
+                      ),
+                    ),
+                    _StatRow(
+                      title: 'Duel Wins',
+                      value: formatCount(
+                        profile?['wins_count'] ?? 0,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-/* ============================================================
-   LOGIN
-   ============================================================ */
+// ============================================================
+// LOGIN
+// ============================================================
 
 class LoginPage extends StatefulWidget {
-  final String language;
-
-  const LoginPage({
-    super.key,
-    required this.language,
-  });
+  const LoginPage({super.key});
 
   @override
-  State<LoginPage> createState() =>
-      _LoginPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState
-    extends State<LoginPage> {
-  final emailController =
-      TextEditingController();
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final nameController = TextEditingController();
 
-  final passwordController =
-      TextEditingController();
-
+  bool signUpMode = false;
   bool loading = false;
 
-  bool get arabic => isArabic(widget.language);
+  Future<void> submit() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      showMessage(
+        context,
+        'Enter email and password.',
+      );
+      return;
+    }
+
+    setState(() {
+      loading = true;
+    });
+
+    try {
+      if (signUpMode) {
+        final response =
+            await supabase.auth.signUp(
+          email: email,
+          password: password,
+        );
+
+        final user = response.user;
+
+        if (user != null) {
+          try {
+            await supabase.from('profiles').upsert(
+              {
+                'user_id': user.id,
+                'email': email,
+                'display_name':
+                    nameController.text.trim().isEmpty
+                        ? 'Talent'
+                        : nameController.text.trim(),
+                'username':
+                    email.split('@').first,
+              },
+              onConflict: 'user_id',
+            );
+          } catch (_) {}
+        }
+
+        if (mounted) {
+          showMessage(
+            context,
+            'Account created. Check your email if confirmation is required.',
+          );
+        }
+      } else {
+        await supabase.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      }
+    } on AuthException catch (e) {
+      if (mounted) {
+        showMessage(
+          context,
+          e.message,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        showMessage(
+          context,
+          'Authentication failed.',
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          loading = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
     emailController.dispose();
     passwordController.dispose();
+    nameController.dispose();
     super.dispose();
-  }
-
-  Future<void> signIn() async {
-    if (emailController.text.trim().isEmpty ||
-        passwordController.text.isEmpty) {
-      snack(
-        context,
-        arabic
-            ? 'أدخل البريد وكلمة المرور'
-            : 'Enter email and password',
-      );
-      return;
-    }
-
-    setState(() {
-      loading = true;
-    });
-
-    try {
-      await supabase.auth.signInWithPassword(
-        email:
-            emailController.text.trim(),
-        password:
-            passwordController.text,
-      );
-
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    } catch (e) {
-      if (mounted) {
-        snack(context, '$e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> signUp() async {
-    if (emailController.text.trim().isEmpty ||
-        passwordController.text.length < 6) {
-      snack(
-        context,
-        arabic
-            ? 'أدخل بريدًا صحيحًا وكلمة مرور من 6 أحرف على الأقل'
-            : 'Enter a valid email and a password of at least 6 characters',
-      );
-      return;
-    }
-
-    setState(() {
-      loading = true;
-    });
-
-    try {
-      final result =
-          await supabase.auth.signUp(
-        email:
-            emailController.text.trim(),
-        password:
-            passwordController.text,
-      );
-
-      if (!mounted) return;
-
-      if (result.session != null) {
-        Navigator.pop(context);
-      } else {
-        snack(
-          context,
-          arabic
-              ? 'تم إنشاء الحساب. تحقق من بريدك إذا كان تأكيد البريد مفعلاً.'
-              : 'Account created. Check your email if email confirmation is enabled.',
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        snack(context, '$e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Directionality(
-      textDirection:
-          arabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            arabic
-                ? 'تسجيل الدخول'
-                : 'Sign in',
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          signUpMode ? 'Create Account' : 'Login',
         ),
-        body: ListView(
+      ),
+      body: SafeArea(
+        child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            const SizedBox(height: 30),
-            const Icon(
-              Icons.shield_outlined,
-              size: 85,
-            ),
             const SizedBox(height: 25),
-            TextField(
-              controller: emailController,
-              keyboardType:
-                  TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: arabic
-                    ? 'البريد الإلكتروني'
-                    : 'Email',
-                border:
-                    const OutlineInputBorder(),
+            const Icon(
+              Icons.public,
+              size: 75,
+            ),
+            const SizedBox(height: 15),
+            const Text(
+              'Reality Duel',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 5),
+            const Text(
+              'The World Is Your Arena',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+              ),
+            ),
+            const SizedBox(height: 40),
+            if (signUpMode)
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Display name',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            if (signUpMode)
+              const SizedBox(height: 12),
+            TextField(
+              controller: emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: passwordController,
               obscureText: true,
-              decoration: InputDecoration(
-                labelText: arabic
-                    ? 'كلمة المرور'
-                    : 'Password',
-                border:
-                    const OutlineInputBorder(),
+              decoration: const InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed:
-                  loading ? null : signIn,
-              child: loading
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child:
-                          CircularProgressIndicator(
-                        strokeWidth: 2,
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 52,
+              child: FilledButton(
+                onPressed: loading ? null : submit,
+                child: loading
+                    ? const CircularProgressIndicator()
+                    : Text(
+                        signUpMode
+                            ? 'Create Account'
+                            : 'Login',
                       ),
-                    )
-                  : Text(
-                      arabic
-                          ? 'دخول'
-                          : 'Sign in',
-                    ),
+              ),
             ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed:
-                  loading ? null : signUp,
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: loading
+                  ? null
+                  : () {
+                      setState(() {
+                        signUpMode = !signUpMode;
+                      });
+                    },
               child: Text(
-                arabic
-                    ? 'إنشاء حساب'
-                    : 'Create account',
+                signUpMode
+                    ? 'Already have an account? Login'
+                    : 'Create a new account',
               ),
             ),
           ],
@@ -3305,3 +2665,12 @@ class _LoginPageState
     );
   }
 }
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Void
