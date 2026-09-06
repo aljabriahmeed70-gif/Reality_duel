@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const String supabaseUrl = 'https://sdbfruxgoefdwyzhkjay.supabase.co/rest/v1/';
+const String supabaseUrl = 'https://sdbfruxgoefdwyzhkjay.supabase.co';
 const String supabasePublishableKey = 'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2';
 
 Future<void> main() async {
