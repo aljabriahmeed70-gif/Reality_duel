@@ -348,17 +348,16 @@ class FeedVideo {
   final int comments;
 
   const FeedVideo({
-    this.id,
-    required this.path,
-    required this.url,
-    required this.title,
-    required this.description,
-    this.ownerId,
-    this.views = 0,
-    this.likes = 0,
-    this.comments = 0,
-  });
-}
+  this.id,
+  required this.path,
+  required this.url,
+  required this.title,
+  this.description = '',
+  this.ownerId,
+  this.views = 0,
+  this.likes = 0,
+  this.comments = 0,
+});
 
 // ============================================================
 // VIDEO FEED
