@@ -10,7 +10,7 @@ const String supabaseUrl =
     'https://sdbfruxgoefdwyzhkjay.supabase.co';
 
 const String supabasePublishableKey =
-    'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux';
+    'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2';
 
 const String videoBucket = 'videos';
 
