@@ -12,14 +12,16 @@ const String supabaseUrl =
 const String supabasePublishableKey =
     'sb_publishable_t3mt53Npr-LxfprutshcVQ_cQulCux2';
 
-final supabase = Supabase.instance.client;
+const String videoBucket = 'videos';
+
+final SupabaseClient supabase = Supabase.instance.client;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Supabase.initialize(
     url: supabaseUrl,
-    anonKey: supabasePublishableKey,
+    publishableKey: supabasePublishableKey,
   );
 
   runApp(const RealityDuelApp());
@@ -33,181 +35,276 @@ class RealityDuelApp extends StatefulWidget {
 }
 
 class _RealityDuelAppState extends State<RealityDuelApp> {
-  bool isArabic = true;
-
-  void toggleLanguage() {
-    setState(() {
-      isArabic = !isArabic;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'Reality Duel',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         colorSchemeSeed: const Color(0xFF7557FF),
         scaffoldBackgroundColor: const Color(0xFF080911),
-        cardColor: const Color(0xFF11131D),
       ),
-      home: AppShell(
-        isArabic: isArabic,
-        onLanguageChanged: toggleLanguage,
-      ),
+      home: const AppRoot(),
     );
   }
 }
 
-/* ============================================================
-   HELPERS
-============================================================ */
-
-String text(bool ar, String arabic, String english) {
-  return ar ? arabic : english;
-}
-
-void showMessage(
-  BuildContext context,
-  String message,
-) {
-  if (!context.mounted) return;
-
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-}
-
-Future<Map<String, dynamic>?> getMyProfile() async {
-  final user = supabase.auth.currentUser;
-
-  if (user == null) return null;
-
-  final result = await supabase
-      .from('profiles')
-      .select()
-      .eq('id', user.id)
-      .maybeSingle();
-
-  return result;
-}
-
-/* ============================================================
-   APP SHELL
-============================================================ */
-
-class AppShell extends StatefulWidget {
-  final bool isArabic;
-  final VoidCallback onLanguageChanged;
-
-  const AppShell({
-    super.key,
-    required this.isArabic,
-    required this.onLanguageChanged,
-  });
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
 
   @override
-  State<AppShell> createState() => _AppShellState();
+  State<AppRoot> createState() => _AppRootState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppRootState extends State<AppRoot> {
+  StreamSubscription<AuthState>? authSubscription;
+
+  Session? session;
+
+  @override
+  void initState() {
+    super.initState();
+
+    session = supabase.auth.currentSession;
+
+    authSubscription =
+        supabase.auth.onAuthStateChange.listen((data) {
+      if (!mounted) return;
+
+      setState(() {
+        session = data.session;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    authSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (session == null) {
+      return const GuestHome();
+    }
+
+    return const MainShell();
+  }
+}
+
+/* ============================================================
+   GUEST HOME
+   ============================================================ */
+
+class GuestHome extends StatefulWidget {
+  const GuestHome({super.key});
+
+  @override
+  State<GuestHome> createState() => _GuestHomeState();
+}
+
+class _GuestHomeState extends State<GuestHome> {
   int index = 0;
 
   @override
   Widget build(BuildContext context) {
-    final loggedIn = supabase.auth.currentUser != null;
-
-    final pages = [
-      FeedPage(isArabic: widget.isArabic),
-      DiscoverPage(isArabic: widget.isArabic),
-      OpportunitiesPage(isArabic: widget.isArabic),
-      ProfilePage(isArabic: widget.isArabic),
+    final pages = <Widget>[
+      const VideoFeedPage(),
+      const DiscoverPage(),
+      const OpportunitiesPage(),
+      const LoginPage(),
     ];
 
-    return Directionality(
-      textDirection:
-          widget.isArabic ? TextDirection.rtl : TextDirection.ltr,
-      child: Scaffold(
-        body: IndexedStack(
-          index: index,
-          children: pages,
-        ),
-        floatingActionButton: loggedIn
-            ? FloatingActionButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => UploadVideoPage(
-                        isArabic: widget.isArabic,
-                      ),
-                    ),
-                  );
-
-                  if (mounted) {
-                    setState(() {});
-                  }
-                },
-                child: const Icon(Icons.add),
-              )
-            : null,
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: index,
-          onDestinationSelected: (value) {
-            setState(() {
-              index = value;
-            });
-          },
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.play_circle_outline),
-              selectedIcon: const Icon(Icons.play_circle),
-              label: text(widget.isArabic, 'الفيديو', 'Feed'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.people_outline),
-              selectedIcon: const Icon(Icons.people),
-              label: text(widget.isArabic, 'المواهب', 'Talent'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.work_outline),
-              selectedIcon: const Icon(Icons.work),
-              label: text(widget.isArabic, 'الفرص', 'Jobs'),
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.person_outline),
-              selectedIcon: const Icon(Icons.person),
-              label: text(widget.isArabic, 'حسابي', 'Profile'),
-            ),
-          ],
-        ),
+    return Scaffold(
+      body: IndexedStack(
+        index: index,
+        children: pages,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (value) {
+          setState(() {
+            index = value;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.play_circle_outline),
+            selectedIcon: Icon(Icons.play_circle),
+            label: 'Feed',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'Discover',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.work_outline),
+            selectedIcon: Icon(Icons.work),
+            label: 'Jobs',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Login',
+          ),
+        ],
       ),
     );
   }
 }
 
 /* ============================================================
-   FEED
-============================================================ */
+   MAIN SHELL
+   ============================================================ */
 
-class FeedPage extends StatefulWidget {
-  final bool isArabic;
-
-  const FeedPage({
-    super.key,
-    required this.isArabic,
-  });
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
 
   @override
-  State<FeedPage> createState() => _FeedPageState();
+  State<MainShell> createState() => _MainShellState();
 }
 
-class _FeedPageState extends State<FeedPage> {
-  List<Map<String, dynamic>> videos = [];
+class _MainShellState extends State<MainShell> {
+  int index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final pages = <Widget>[
+      const VideoFeedPage(),
+      const DiscoverPage(),
+      const OpportunitiesPage(),
+      const ProfilePage(),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(
+        index: index,
+        children: pages,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const UploadVideoPage(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (value) {
+          setState(() {
+            index = value;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.play_circle_outline),
+            selectedIcon: Icon(Icons.play_circle),
+            label: 'Feed',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: 'Discover',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.work_outline),
+            selectedIcon: Icon(Icons.work),
+            label: 'Jobs',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ============================================================
+   VIDEO MODEL
+   ============================================================ */
+
+class VideoItem {
+  final String id;
+  final String url;
+  final String caption;
+  final int views;
+  final int likes;
+  final int comments;
+  final String? userId;
+
+  VideoItem({
+    required this.id,
+    required this.url,
+    required this.caption,
+    required this.views,
+    required this.likes,
+    required this.comments,
+    this.userId,
+  });
+
+  factory VideoItem.fromMap(Map<String, dynamic> map) {
+    String url = '';
+
+    final directUrl = map['video_url']?.toString();
+
+    if (directUrl != null && directUrl.isNotEmpty) {
+      url = directUrl;
+    } else {
+      final path = map['storage_path']?.toString();
+
+      if (path != null && path.isNotEmpty) {
+        url = supabase.storage
+            .from(videoBucket)
+            .getPublicUrl(path);
+      }
+    }
+
+    return VideoItem(
+      id: map['id'].toString(),
+      url: url,
+      caption: map['caption']?.toString() ?? '',
+      views: _toInt(map['views_count']),
+      likes: _toInt(map['likes_count']),
+      comments: _toInt(map['comments_count']),
+      userId: map['user_id']?.toString(),
+    );
+  }
+}
+
+int _toInt(dynamic value) {
+  if (value is int) return value;
+
+  return int.tryParse(
+        value?.toString() ?? '0',
+      ) ??
+      0;
+}
+
+/* ============================================================
+   VIDEO FEED
+   ============================================================ */
+
+class VideoFeedPage extends StatefulWidget {
+  const VideoFeedPage({super.key});
+
+  @override
+  State<VideoFeedPage> createState() => _VideoFeedPageState();
+}
+
+class _VideoFeedPageState extends State<VideoFeedPage> {
+  final PageController controller = PageController();
+
+  List<VideoItem> videos = [];
   bool loading = true;
   String? error;
 
@@ -218,49 +315,36 @@ class _FeedPageState extends State<FeedPage> {
   }
 
   Future<void> loadVideos() async {
-    setState(() {
-      loading = true;
-      error = null;
-    });
-
     try {
-      final result = await supabase
+      setState(() {
+        loading = true;
+        error = null;
+      });
+
+      final response = await supabase
           .from('videos')
-          .select('''
-            id,
-            user_id,
-            title,
-            description,
-            storage_path,
-            video_url,
-            thumbnail_url,
-            duration_seconds,
-            views_count,
-            likes_count,
-            comments_count,
-            shares_count,
-            is_public,
-            created_at
-          ''')
-          .eq('is_public', true)
-          .order('created_at', ascending: false);
+          .select(
+            'id,user_id,storage_path,video_url,caption,'
+            'views_count,likes_count,comments_count,created_at',
+          )
+          .order(
+            'created_at',
+            ascending: false,
+          );
 
-      final rows = List<Map<String, dynamic>>.from(result);
-
-      for (final video in rows) {
-        final profile = await supabase
-            .from('profiles')
-            .select('username,display_name,avatar_url')
-            .eq('id', video['user_id'])
-            .maybeSingle();
-
-        video['profile'] = profile;
-      }
+      final list = (response as List)
+          .map(
+            (item) => VideoItem.fromMap(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .where((video) => video.url.isNotEmpty)
+          .toList();
 
       if (!mounted) return;
 
       setState(() {
-        videos = rows;
+        videos = list;
         loading = false;
       });
     } catch (e) {
@@ -276,41 +360,64 @@ class _FeedPageState extends State<FeedPage> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     if (error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 50,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                text(
-                  widget.isArabic,
-                  'تعذر تحميل الفيديوهات',
-                  'Could not load videos',
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Reality Duel'),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.error_outline,
+                  size: 60,
                 ),
-                style: const TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                error!,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: loadVideos,
+                const SizedBox(height: 16),
+                const Text(
+                  'تعذر تحميل الفيديوهات',
+                  style: TextStyle(fontSize: 20),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  error!,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+                FilledButton(
+                  onPressed: loadVideos,
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (videos.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Reality Duel'),
+        ),
+        body: RefreshIndicator(
+          onRefresh: loadVideos,
+          child: ListView(
+            children: const [
+              SizedBox(height: 250),
+              Center(
                 child: Text(
-                  text(widget.isArabic, 'إعادة المحاولة', 'Retry'),
+                  'لا توجد فيديوهات حتى الآن',
+                  style: TextStyle(fontSize: 20),
                 ),
               ),
             ],
@@ -319,39 +426,19 @@ class _FeedPageState extends State<FeedPage> {
       );
     }
 
-    if (videos.isEmpty) {
-      return RefreshIndicator(
+    return Scaffold(
+      body: RefreshIndicator(
         onRefresh: loadVideos,
-        child: ListView(
-          children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height * .75,
-              child: Center(
-                child: Text(
-                  text(
-                    widget.isArabic,
-                    'لا توجد فيديوهات حتى الآن',
-                    'No videos yet',
-                  ),
-                ),
-              ),
-            ),
-          ],
+        child: PageView.builder(
+          controller: controller,
+          scrollDirection: Axis.vertical,
+          itemCount: videos.length,
+          itemBuilder: (context, index) {
+            return VideoCard(
+              video: videos[index],
+            );
+          },
         ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: loadVideos,
-      child: PageView.builder(
-        scrollDirection: Axis.vertical,
-        itemCount: videos.length,
-        itemBuilder: (context, index) {
-          return VideoCard(
-            video: videos[index],
-            isArabic: widget.isArabic,
-          );
-        },
       ),
     );
   }
@@ -359,16 +446,14 @@ class _FeedPageState extends State<FeedPage> {
 
 /* ============================================================
    VIDEO CARD
-============================================================ */
+   ============================================================ */
 
 class VideoCard extends StatefulWidget {
-  final Map<String, dynamic> video;
-  final bool isArabic;
+  final VideoItem video;
 
   const VideoCard({
     super.key,
     required this.video,
-    required this.isArabic,
   });
 
   @override
@@ -376,118 +461,68 @@ class VideoCard extends StatefulWidget {
 }
 
 class _VideoCardState extends State<VideoCard> {
-  VideoPlayerController? controller;
+  late VideoPlayerController videoController;
 
+  bool initialized = false;
+  bool playing = false;
   bool liked = false;
-  bool following = false;
-  bool loadingAction = false;
+  bool loadingLike = false;
 
   @override
   void initState() {
     super.initState();
     initializeVideo();
-    checkLike();
-    checkFollow();
   }
 
   Future<void> initializeVideo() async {
-    String? url = widget.video['video_url']?.toString();
-
-    if (url == null || url.isEmpty) {
-      final path = widget.video['storage_path']?.toString();
-
-      if (path != null && path.isNotEmpty) {
-        url = supabase.storage.from('videos').getPublicUrl(path);
-      }
-    }
-
-    if (url == null || url.isEmpty) return;
-
-    final c = VideoPlayerController.networkUrl(
-      Uri.parse(url),
+    videoController = VideoPlayerController.networkUrl(
+      Uri.parse(widget.video.url),
     );
 
-    controller = c;
-
     try {
-      await c.initialize();
-      await c.setLooping(true);
+      await videoController.initialize();
 
-      if (mounted) {
-        setState(() {});
-        await c.play();
-      }
-    } catch (_) {}
+      await videoController.setLooping(true);
+
+      if (!mounted) return;
+
+      setState(() {
+        initialized = true;
+        playing = true;
+      });
+
+      await videoController.play();
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        initialized = false;
+      });
+    }
   }
 
-  Future<void> checkLike() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) return;
-
-    try {
-      final row = await supabase
-          .from('likes')
-          .select('id')
-          .eq('video_id', widget.video['id'])
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (mounted) {
-        setState(() {
-          liked = row != null;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> checkFollow() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) return;
-
-    if (user.id == widget.video['user_id']) return;
-
-    try {
-      final row = await supabase
-          .from('followers')
-          .select('id')
-          .eq('follower_id', user.id)
-          .eq('following_id', widget.video['user_id'])
-          .maybeSingle();
-
-      if (mounted) {
-        setState(() {
-          following = row != null;
-        });
-      }
-    } catch (_) {}
+  @override
+  void dispose() {
+    videoController.dispose();
+    super.dispose();
   }
 
   Future<void> toggleLike() async {
     final user = supabase.auth.currentUser;
 
     if (user == null) {
-      await Navigator.push(
-        context,
+      Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => AuthPage(
-            isArabic: widget.isArabic,
-          ),
+          builder: (_) => const LoginPage(),
         ),
       );
-
-      if (mounted) {
-        checkLike();
-      }
-
       return;
     }
 
-    if (loadingAction) return;
+    if (loadingLike) return;
 
     setState(() {
-      loadingAction = true;
+      loadingLike = true;
     });
 
     try {
@@ -495,591 +530,151 @@ class _VideoCardState extends State<VideoCard> {
         await supabase
             .from('likes')
             .delete()
-            .eq('video_id', widget.video['id'])
+            .eq('video_id', widget.video.id)
             .eq('user_id', user.id);
+
+        setState(() {
+          liked = false;
+        });
       } else {
         await supabase.from('likes').insert({
-          'video_id': widget.video['id'],
+          'video_id': widget.video.id,
           'user_id': user.id,
         });
-      }
 
-      if (mounted) {
         setState(() {
-          liked = !liked;
+          liked = true;
         });
       }
     } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
+      showMessage(
+        context,
+        'تعذر تنفيذ الإعجاب: $e',
+      );
     } finally {
       if (mounted) {
         setState(() {
-          loadingAction = false;
+          loadingLike = false;
         });
       }
     }
   }
 
-  Future<void> toggleFollow() async {
-    final user = supabase.auth.currentUser;
+  void togglePlay() {
+    if (!initialized) return;
 
-    if (user == null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AuthPage(
-            isArabic: widget.isArabic,
-          ),
-        ),
-      );
+    if (videoController.value.isPlaying) {
+      videoController.pause();
 
-      if (mounted) {
-        checkFollow();
-      }
+      setState(() {
+        playing = false;
+      });
+    } else {
+      videoController.play();
 
-      return;
+      setState(() {
+        playing = true;
+      });
     }
-
-    if (user.id == widget.video['user_id']) return;
-
-    try {
-      if (following) {
-        await supabase
-            .from('followers')
-            .delete()
-            .eq('follower_id', user.id)
-            .eq('following_id', widget.video['user_id']);
-      } else {
-        await supabase.from('followers').insert({
-          'follower_id': user.id,
-          'following_id': widget.video['user_id'],
-        });
-      }
-
-      if (mounted) {
-        setState(() {
-          following = !following;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
-    }
-  }
-
-  Future<void> openComments() async {
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: const Color(0xFF10121B),
-      builder: (_) => CommentsSheet(
-        videoId: widget.video['id'],
-        isArabic: widget.isArabic,
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    controller?.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final profile =
-        widget.video['profile'] as Map<String, dynamic>?;
+    return GestureDetector(
+      onTap: togglePlay,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            color: Colors.black,
+          ),
 
-    final username =
-        profile?['display_name'] ??
-        profile?['username'] ??
-        'Reality Duel';
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Container(
-          color: Colors.black,
-          child: controller != null &&
-                  controller!.value.isInitialized
-              ? GestureDetector(
-                  onTap: () {
-                    final c = controller!;
-
-                    if (c.value.isPlaying) {
-                      c.pause();
-                    } else {
-                      c.play();
-                    }
-
-                    setState(() {});
-                  },
-                  child: Center(
-                    child: AspectRatio(
-                      aspectRatio:
-                          controller!.value.aspectRatio,
-                      child: VideoPlayer(controller!),
-                    ),
-                  ),
-                )
-              : const Center(
-                  child: CircularProgressIndicator(),
-                ),
-        ),
-
-        Positioned(
-          left: 16,
-          right: 90,
-          bottom: 35,
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            children: [
-              Text(
-                '@$username',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+          if (initialized)
+            Center(
+              child: AspectRatio(
+                aspectRatio: videoController.value.aspectRatio,
+                child: VideoPlayer(videoController),
               ),
-              const SizedBox(height: 8),
-              if ((widget.video['title'] ?? '')
-                  .toString()
-                  .isNotEmpty)
-                Text(
-                  widget.video['title'].toString(),
-                  style: const TextStyle(
-                    fontSize: 16,
+            ),
+
+          if (!initialized)
+            const Center(
+              child: CircularProgressIndicator(),
+            ),
+
+          Positioned(
+            right: 12,
+            bottom: 100,
+            child: Column(
+              children: [
+                _ActionButton(
+                  icon: liked
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  label: '${widget.video.likes}',
+                  color: liked ? Colors.red : Colors.white,
+                  onTap: toggleLike,
+                ),
+                const SizedBox(height: 18),
+                _ActionButton(
+                  icon: Icons.comment,
+                  label: '${widget.video.comments}',
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => CommentsPage(
+                          videoId: widget.video.id,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                _ActionButton(
+                  icon: Icons.visibility,
+                  label: '${widget.video.views}',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+
+          Positioned(
+            left: 18,
+            right: 80,
+            bottom: 30,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Reality Duel',
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              if ((widget.video['description'] ?? '')
-                  .toString()
-                  .isNotEmpty)
-                Padding(
-                  padding:
-                      const EdgeInsets.only(top: 5),
-                  child: Text(
-                    widget.video['description'].toString(),
-                    maxLines: 3,
+                const SizedBox(height: 8),
+                if (widget.video.caption.isNotEmpty)
+                  Text(
+                    widget.video.caption,
+                    maxLines: 4,
                     overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-            ],
-          ),
-        ),
-
-        Positioned(
-          right: 12,
-          bottom: 35,
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 25,
-                child: IconButton(
-                  onPressed: toggleLike,
-                  icon: Icon(
-                    liked
-                        ? Icons.favorite
-                        : Icons.favorite_border,
-                    color:
-                        liked ? Colors.red : Colors.white,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${widget.video['likes_count'] ?? 0}',
-              ),
-              const SizedBox(height: 18),
-              CircleAvatar(
-                radius: 25,
-                child: IconButton(
-                  onPressed: openComments,
-                  icon: const Icon(Icons.comment),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${widget.video['comments_count'] ?? 0}',
-              ),
-              const SizedBox(height: 18),
-              CircleAvatar(
-                radius: 25,
-                child: IconButton(
-                  onPressed: toggleFollow,
-                  icon: Icon(
-                    following
-                        ? Icons.person_remove
-                        : Icons.person_add,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/* ============================================================
-   COMMENTS
-============================================================ */
-
-class CommentsSheet extends StatefulWidget {
-  final String videoId;
-  final bool isArabic;
-
-  const CommentsSheet({
-    super.key,
-    required this.videoId,
-    required this.isArabic,
-  });
-
-  @override
-  State<CommentsSheet> createState() =>
-      _CommentsSheetState();
-}
-
-class _CommentsSheetState extends State<CommentsSheet> {
-  final controller = TextEditingController();
-
-  List<Map<String, dynamic>> comments = [];
-  bool loading = true;
-  bool sending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    loadComments();
-  }
-
-  Future<void> loadComments() async {
-    try {
-      final result = await supabase
-          .from('comments')
-          .select('''
-            id,
-            user_id,
-            body,
-            created_at
-          ''')
-          .eq('video_id', widget.videoId)
-          .order('created_at', ascending: true);
-
-      final rows =
-          List<Map<String, dynamic>>.from(result);
-
-      for (final comment in rows) {
-        final profile = await supabase
-            .from('profiles')
-            .select('username,display_name')
-            .eq('id', comment['user_id'])
-            .maybeSingle();
-
-        comment['profile'] = profile;
-      }
-
-      if (mounted) {
-        setState(() {
-          comments = rows;
-          loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> sendComment() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
-      showMessage(
-        context,
-        text(
-          widget.isArabic,
-          'سجل الدخول أولاً',
-          'Please sign in first',
-        ),
-      );
-      return;
-    }
-
-    final body = controller.text.trim();
-
-    if (body.isEmpty || sending) return;
-
-    setState(() {
-      sending = true;
-    });
-
-    try {
-      await supabase.from('comments').insert({
-        'video_id': widget.videoId,
-        'user_id': user.id,
-        'body': body,
-      });
-
-      controller.clear();
-      await loadComments();
-    } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          sending = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SizedBox(
-        height: MediaQuery.of(context).size.height * .75,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                text(
-                  widget.isArabic,
-                  'التعليقات',
-                  'Comments',
-                ),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            Expanded(
-              child: loading
-                  ? const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  : comments.isEmpty
-                      ? Center(
-                          child: Text(
-                            text(
-                              widget.isArabic,
-                              'لا توجد تعليقات',
-                              'No comments yet',
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: comments.length,
-                          itemBuilder: (_, index) {
-                            final item = comments[index];
-                            final profile =
-                                item['profile']
-                                    as Map<String, dynamic>?;
-
-                            return ListTile(
-                              title: Text(
-                                profile?['display_name'] ??
-                                    profile?['username'] ??
-                                    'User',
-                              ),
-                              subtitle:
-                                  Text(item['body'] ?? ''),
-                            );
-                          },
-                        ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      decoration: InputDecoration(
-                        hintText: text(
-                          widget.isArabic,
-                          'اكتب تعليقًا...',
-                          'Write a comment...',
-                        ),
-                        border: const OutlineInputBorder(),
-                      ),
+                    style: const TextStyle(
+                      fontSize: 15,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: sendComment,
-                    icon: sending
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : const Icon(Icons.send),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   DISCOVER TALENT
-============================================================ */
-
-class DiscoverPage extends StatefulWidget {
-  final bool isArabic;
-
-  const DiscoverPage({
-    super.key,
-    required this.isArabic,
-  });
-
-  @override
-  State<DiscoverPage> createState() =>
-      _DiscoverPageState();
-}
-
-class _DiscoverPageState extends State<DiscoverPage> {
-  List<Map<String, dynamic>> profiles = [];
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadProfiles();
-  }
-
-  Future<void> loadProfiles() async {
-    try {
-      final result = await supabase
-          .from('profiles')
-          .select('''
-            id,
-            username,
-            display_name,
-            bio,
-            avatar_url,
-            country,
-            city,
-            is_talent,
-            is_company,
-            followers_count,
-            videos_count
-          ''')
-          .eq('is_talent', true)
-          .order('followers_count', ascending: false);
-
-      if (mounted) {
-        setState(() {
-          profiles =
-              List<Map<String, dynamic>>.from(result);
-          loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: loadProfiles,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            text(
-              widget.isArabic,
-              'اكتشف المواهب',
-              'Discover Talent',
-            ),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
+              ],
             ),
           ),
-          const SizedBox(height: 20),
-          ...profiles.map(
-            (profile) => Card(
-              child: ListTile(
-                leading: CircleAvatar(
-                  backgroundImage:
-                      profile['avatar_url'] != null &&
-                              profile['avatar_url']
-                                  .toString()
-                                  .isNotEmpty
-                          ? NetworkImage(
-                              profile['avatar_url'],
-                            )
-                          : null,
-                  child:
-                      profile['avatar_url'] == null
-                          ? const Icon(Icons.person)
-                          : null,
-                ),
-                title: Text(
-                  profile['display_name'] ??
-                      profile['username'] ??
-                      'Talent',
-                ),
-                subtitle: Text(
-                  '${profile['followers_count'] ?? 0} '
-                  '${text(widget.isArabic, 'متابع', 'followers')}',
-                ),
-                trailing: const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                ),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PublicProfilePage(
-                        profile: profile,
-                        isArabic: widget.isArabic,
-                      ),
-                    ),
-                  );
-                },
+
+          if (!playing && initialized)
+            const Center(
+              child: Icon(
+                Icons.play_arrow,
+                size: 80,
+                color: Colors.white70,
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1087,643 +682,42 @@ class _DiscoverPageState extends State<DiscoverPage> {
 }
 
 /* ============================================================
-   OPPORTUNITIES
-============================================================ */
+   ACTION BUTTON
+   ============================================================ */
 
-class OpportunitiesPage extends StatefulWidget {
-  final bool isArabic;
-
-  const OpportunitiesPage({
-    super.key,
-    required this.isArabic,
-  });
-
-  @override
-  State<OpportunitiesPage> createState() =>
-      _OpportunitiesPageState();
-}
-
-class _OpportunitiesPageState
-    extends State<OpportunitiesPage> {
-  List<Map<String, dynamic>> opportunities = [];
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadOpportunities();
-  }
-
-  Future<void> loadOpportunities() async {
-    try {
-      final result = await supabase
-          .from('opportunities')
-          .select()
-          .eq('status', 'open')
-          .order('created_at', ascending: false);
-
-      if (mounted) {
-        setState(() {
-          opportunities =
-              List<Map<String, dynamic>>.from(result);
-          loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> apply(
-    Map<String, dynamic> opportunity,
-  ) async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AuthPage(
-            isArabic: widget.isArabic,
-          ),
-        ),
-      );
-      return;
-    }
-
-    try {
-      await supabase.from('applications').insert({
-        'opportunity_id': opportunity['id'],
-        'applicant_id': user.id,
-        'message': '',
-        'status': 'pending',
-      });
-
-      if (mounted) {
-        showMessage(
-          context,
-          text(
-            widget.isArabic,
-            'تم إرسال طلبك',
-            'Application submitted',
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: loadOpportunities,
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text(
-            text(
-              widget.isArabic,
-              'الفرص',
-              'Opportunities',
-            ),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 16),
-          if (opportunities.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 100),
-              child: Center(
-                child: Text(
-                  text(
-                    widget.isArabic,
-                    'لا توجد فرص مفتوحة حاليًا',
-                    'No open opportunities',
-                  ),
-                ),
-              ),
-            ),
-          ...opportunities.map(
-            (opportunity) => Card(
-              margin:
-                  const EdgeInsets.only(bottom: 14),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      opportunity['title'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      opportunity['description'] ?? '',
-                    ),
-                    const SizedBox(height: 8),
-                    if ((opportunity['location'] ?? '')
-                        .toString()
-                        .isNotEmpty)
-                      Text(
-                        '📍 ${opportunity['location']}',
-                      ),
-                    if ((opportunity['opportunity_type'] ??
-                            '')
-                        .toString()
-                        .isNotEmpty)
-                      Text(
-                        '• ${opportunity['opportunity_type']}',
-                      ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () =>
-                            apply(opportunity),
-                        child: Text(
-                          text(
-                            widget.isArabic,
-                            'تقديم',
-                            'Apply',
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   PROFILE
-============================================================ */
-
-class ProfilePage extends StatefulWidget {
-  final bool isArabic;
-
-  const ProfilePage({
-    super.key,
-    required this.isArabic,
-  });
-
-  @override
-  State<ProfilePage> createState() =>
-      _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  Map<String, dynamic>? profile;
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    loadProfile();
-  }
-
-  Future<void> loadProfile() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-      return;
-    }
-
-    try {
-      final result = await supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .maybeSingle();
-
-      if (mounted) {
-        setState(() {
-          profile = result;
-          loading = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.person_outline,
-                size: 70,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                text(
-                  widget.isArabic,
-                  'سجل الدخول للوصول إلى حسابك',
-                  'Sign in to access your profile',
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () async {
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => AuthPage(
-                        isArabic: widget.isArabic,
-                      ),
-                    ),
-                  );
-
-                  if (mounted) {
-                    setState(() {});
-                    loadProfile();
-                  }
-                },
-                child: Text(
-                  text(
-                    widget.isArabic,
-                    'تسجيل الدخول',
-                    'Sign In',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    final p = profile ?? {};
-
-    return RefreshIndicator(
-      onRefresh: loadProfile,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Center(
-            child: CircleAvatar(
-              radius: 48,
-              backgroundImage:
-                  p['avatar_url'] != null &&
-                          p['avatar_url']
-                              .toString()
-                              .isNotEmpty
-                      ? NetworkImage(p['avatar_url'])
-                      : null,
-              child: p['avatar_url'] == null
-                  ? const Icon(
-                      Icons.person,
-                      size: 48,
-                    )
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              p['display_name'] ??
-                  p['username'] ??
-                  'Reality Duel User',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          if (p['username'] != null)
-            Center(
-              child: Text('@${p['username']}'),
-            ),
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly,
-            children: [
-              StatBox(
-                value: '${p['followers_count'] ?? 0}',
-                label: text(
-                  widget.isArabic,
-                  'المتابعون',
-                  'Followers',
-                ),
-              ),
-              StatBox(
-                value: '${p['following_count'] ?? 0}',
-                label: text(
-                  widget.isArabic,
-                  'يتابع',
-                  'Following',
-                ),
-              ),
-              StatBox(
-                value: '${p['videos_count'] ?? 0}',
-                label: text(
-                  widget.isArabic,
-                  'الفيديوهات',
-                  'Videos',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 30),
-          if ((p['bio'] ?? '').toString().isNotEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Text(p['bio']),
-              ),
-            ),
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: () async {
-              await supabase.auth.signOut();
-
-              if (mounted) {
-                setState(() {
-                  profile = null;
-                });
-              }
-            },
-            icon: const Icon(Icons.logout),
-            label: Text(
-              text(
-                widget.isArabic,
-                'تسجيل الخروج',
-                'Sign Out',
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class StatBox extends StatelessWidget {
-  final String value;
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
   final String label;
+  final VoidCallback onTap;
+  final Color color;
 
-  const StatBox({
-    super.key,
-    required this.value,
+  const _ActionButton({
+    required this.icon,
     required this.label,
+    required this.onTap,
+    this.color = Colors.white,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(label),
-      ],
-    );
-  }
-}
-
-/* ============================================================
-   PUBLIC PROFILE
-============================================================ */
-
-class PublicProfilePage extends StatefulWidget {
-  final Map<String, dynamic> profile;
-  final bool isArabic;
-
-  const PublicProfilePage({
-    super.key,
-    required this.profile,
-    required this.isArabic,
-  });
-
-  @override
-  State<PublicProfilePage> createState() =>
-      _PublicProfilePageState();
-}
-
-class _PublicProfilePageState
-    extends State<PublicProfilePage> {
-  bool following = false;
-
-  @override
-  void initState() {
-    super.initState();
-    checkFollowing();
-  }
-
-  Future<void> checkFollowing() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null ||
-        user.id == widget.profile['id']) {
-      return;
-    }
-
-    try {
-      final row = await supabase
-          .from('followers')
-          .select('id')
-          .eq('follower_id', user.id)
-          .eq('following_id', widget.profile['id'])
-          .maybeSingle();
-
-      if (mounted) {
-        setState(() {
-          following = row != null;
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> toggleFollow() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AuthPage(
-            isArabic: widget.isArabic,
-          ),
-        ),
-      );
-
-      checkFollowing();
-      return;
-    }
-
-    try {
-      if (following) {
-        await supabase
-            .from('followers')
-            .delete()
-            .eq('follower_id', user.id)
-            .eq('following_id', widget.profile['id']);
-      } else {
-        await supabase.from('followers').insert({
-          'follower_id': user.id,
-          'following_id': widget.profile['id'],
-        });
-      }
-
-      if (mounted) {
-        setState(() {
-          following = !following;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final p = widget.profile;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          p['display_name'] ??
-              p['username'] ??
-              'Profile',
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
         children: [
-          Center(
-            child: CircleAvatar(
-              radius: 55,
-              backgroundImage:
-                  p['avatar_url'] != null &&
-                          p['avatar_url']
-                              .toString()
-                              .isNotEmpty
-                      ? NetworkImage(p['avatar_url'])
-                      : null,
-              child: p['avatar_url'] == null
-                  ? const Icon(
-                      Icons.person,
-                      size: 55,
-                    )
-                  : null,
+          Icon(
+            icon,
+            color: color,
+            size: 34,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 15),
-          Center(
-            child: Text(
-              p['display_name'] ??
-                  p['username'] ??
-                  'Talent',
-              style: const TextStyle(
-                fontSize: 25,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: toggleFollow,
-            icon: Icon(
-              following
-                  ? Icons.person_remove
-                  : Icons.person_add,
-            ),
-            label: Text(
-              following
-                  ? text(
-                      widget.isArabic,
-                      'إلغاء المتابعة',
-                      'Unfollow',
-                    )
-                  : text(
-                      widget.isArabic,
-                      'متابعة',
-                      'Follow',
-                    ),
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment:
-                MainAxisAlignment.spaceEvenly,
-            children: [
-              StatBox(
-                value: '${p['followers_count'] ?? 0}',
-                label: text(
-                  widget.isArabic,
-                  'المتابعون',
-                  'Followers',
-                ),
-              ),
-              StatBox(
-                value: '${p['videos_count'] ?? 0}',
-                label: text(
-                  widget.isArabic,
-                  'الفيديوهات',
-                  'Videos',
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 25),
-          if ((p['bio'] ?? '').toString().isNotEmpty)
-            Text(p['bio']),
         ],
       ),
     );
@@ -1731,56 +725,31 @@ class _PublicProfilePageState
 }
 
 /* ============================================================
-   AUTH
-============================================================ */
+   LOGIN
+   ============================================================ */
 
-class AuthPage extends StatefulWidget {
-  final bool isArabic;
-
-  const AuthPage({
-    super.key,
-    required this.isArabic,
-  });
+class LoginPage extends StatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  State<AuthPage> createState() => _AuthPageState();
+  State<LoginPage> createState() => _LoginPageState();
 }
 
-class _AuthPageState extends State<AuthPage> {
-  bool signup = false;
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+
   bool loading = false;
+  bool obscure = true;
 
-  final email = TextEditingController();
-  final password = TextEditingController();
-  final username = TextEditingController();
-  final displayName = TextEditingController();
+  Future<void> login() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
 
-  String role = 'talent';
-
-  Future<void> submit() async {
-    final e = email.text.trim();
-    final p = password.text.trim();
-
-    if (e.isEmpty || p.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       showMessage(
         context,
-        text(
-          widget.isArabic,
-          'أدخل البريد وكلمة المرور',
-          'Enter email and password',
-        ),
-      );
-      return;
-    }
-
-    if (signup && username.text.trim().isEmpty) {
-      showMessage(
-        context,
-        text(
-          widget.isArabic,
-          'أدخل اسم المستخدم',
-          'Enter username',
-        ),
+        'أدخل البريد الإلكتروني وكلمة المرور',
       );
       return;
     }
@@ -1790,69 +759,26 @@ class _AuthPageState extends State<AuthPage> {
     });
 
     try {
-      if (signup) {
-        final response =
-            await supabase.auth.signUp(
-          email: e,
-          password: p,
-          data: {
-            'role': role,
-            'username': username.text.trim(),
-            'display_name':
-                displayName.text.trim(),
-          },
-        );
+      await supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
 
-        if (response.user == null) {
-          throw Exception(
-            text(
-              widget.isArabic,
-              'تعذر إنشاء الحساب',
-              'Could not create account',
-            ),
-          );
-        }
-
-        if (mounted) {
-          showMessage(
-            context,
-            text(
-              widget.isArabic,
-              'تم إنشاء الحساب بنجاح',
-              'Account created successfully',
-            ),
-          );
-        }
-      } else {
-        await supabase.auth.signInWithPassword(
-          email: e,
-          password: p,
-        );
-
-        if (mounted) {
-          Navigator.pop(context);
-        }
-      }
-    } on AuthException catch (e) {
       if (!mounted) return;
 
-      String message = e.message;
-
-      if (message.toLowerCase().contains(
-            'already registered',
-          )) {
-        message = text(
-          widget.isArabic,
-          'هذا البريد مسجل مسبقًا. استخدم تسجيل الدخول.',
-          'This email is already registered. Please sign in.',
-        );
-      }
-
-      showMessage(context, message);
+      Navigator.of(context).popUntil(
+        (route) => route.isFirst,
+      );
+    } on AuthException catch (e) {
+      showMessage(
+        context,
+        e.message,
+      );
     } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
+      showMessage(
+        context,
+        'حدث خطأ أثناء تسجيل الدخول: $e',
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -1864,10 +790,8 @@ class _AuthPageState extends State<AuthPage> {
 
   @override
   void dispose() {
-    email.dispose();
-    password.dispose();
-    username.dispose();
-    displayName.dispose();
+    emailController.dispose();
+    passwordController.dispose();
     super.dispose();
   }
 
@@ -1875,181 +799,90 @@ class _AuthPageState extends State<AuthPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          signup
-              ? text(
-                  widget.isArabic,
-                  'إنشاء حساب',
-                  'Create Account',
-                )
-              : text(
-                  widget.isArabic,
-                  'تسجيل الدخول',
-                  'Sign In',
-                ),
-        ),
+        title: const Text('تسجيل الدخول'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          children: [
-            const SizedBox(height: 25),
-            const Icon(
-              Icons.public,
-              size: 70,
-            ),
-            const SizedBox(height: 15),
-            const Text(
-              'REALITY DUEL',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 35),
+              const Icon(
+                Icons.sports_mma,
+                size: 80,
               ),
-            ),
-            const SizedBox(height: 35),
-            if (signup) ...[
+              const SizedBox(height: 15),
+              const Text(
+                'REALITY DUEL',
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 40),
               TextField(
-                controller: username,
-                decoration: InputDecoration(
-                  labelText: text(
-                    widget.isArabic,
-                    'اسم المستخدم',
-                    'Username',
-                  ),
-                  prefixIcon:
-                      const Icon(Icons.alternate_email),
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'البريد الإلكتروني',
+                  prefixIcon: Icon(Icons.email),
+                  border: OutlineInputBorder(),
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 15),
               TextField(
-                controller: displayName,
+                controller: passwordController,
+                obscureText: obscure,
                 decoration: InputDecoration(
-                  labelText: text(
-                    widget.isArabic,
-                    'الاسم الظاهر',
-                    'Display name',
-                  ),
-                  prefixIcon:
-                      const Icon(Icons.person),
-                ),
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<String>(
-                value: role,
-                decoration: InputDecoration(
-                  labelText: text(
-                    widget.isArabic,
-                    'نوع الحساب',
-                    'Account type',
-                  ),
-                ),
-                items: [
-                  DropdownMenuItem(
-                    value: 'talent',
-                    child: Text(
-                      text(
-                        widget.isArabic,
-                        'موهبة',
-                        'Talent',
-                      ),
-                    ),
-                  ),
-                  DropdownMenuItem(
-                    value: 'company',
-                    child: Text(
-                      text(
-                        widget.isArabic,
-                        'شركة',
-                        'Company',
-                      ),
-                    ),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() {
-                      role = value;
-                    });
-                  }
-                },
-              ),
-              const SizedBox(height: 14),
-            ],
-            TextField(
-              controller: email,
-              keyboardType:
-                  TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: text(
-                  widget.isArabic,
-                  'البريد الإلكتروني',
-                  'Email',
-                ),
-                prefixIcon:
-                    const Icon(Icons.email),
-              ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: InputDecoration(
-                labelText: text(
-                  widget.isArabic,
-                  'كلمة المرور',
-                  'Password',
-                ),
-                prefixIcon:
-                    const Icon(Icons.lock),
-              ),
-            ),
-            const SizedBox(height: 25),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed: loading ? null : submit,
-                child: loading
-                    ? const CircularProgressIndicator()
-                    : Text(
-                        signup
-                            ? text(
-                                widget.isArabic,
-                                'إنشاء الحساب',
-                                'Create Account',
-                              )
-                            : text(
-                                widget.isArabic,
-                                'تسجيل الدخول',
-                                'Sign In',
-                              ),
-                      ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            TextButton(
-              onPressed: loading
-                  ? null
-                  : () {
+                  labelText: 'كلمة المرور',
+                  prefixIcon: const Icon(Icons.lock),
+                  border: const OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    onPressed: () {
                       setState(() {
-                        signup = !signup;
+                        obscure = !obscure;
                       });
                     },
-              child: Text(
-                signup
-                    ? text(
-                        widget.isArabic,
-                        'لديك حساب؟ تسجيل الدخول',
-                        'Already have an account? Sign in',
-                      )
-                    : text(
-                        widget.isArabic,
-                        'ليس لديك حساب؟ إنشاء حساب',
-                        'No account? Create one',
-                      ),
+                    icon: Icon(
+                      obscure
+                          ? Icons.visibility
+                          : Icons.visibility_off,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 25),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  onPressed: loading ? null : login,
+                  child: loading
+                      ? const CircularProgressIndicator()
+                      : const Text(
+                          'دخول',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 15),
+              TextButton(
+                onPressed: loading
+                    ? null
+                    : () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                const SignUpPage(),
+                          ),
+                        );
+                      },
+                child: const Text(
+                  'إنشاء حساب جديد',
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2057,139 +890,108 @@ class _AuthPageState extends State<AuthPage> {
 }
 
 /* ============================================================
-   UPLOAD VIDEO
-============================================================ */
+   SIGN UP
+   ============================================================ */
 
-class UploadVideoPage extends StatefulWidget {
-  final bool isArabic;
-
-  const UploadVideoPage({
-    super.key,
-    required this.isArabic,
-  });
+class SignUpPage extends StatefulWidget {
+  const SignUpPage({super.key});
 
   @override
-  State<UploadVideoPage> createState() =>
-      _UploadVideoPageState();
+  State<SignUpPage> createState() => _SignUpPageState();
 }
 
-class _UploadVideoPageState
-    extends State<UploadVideoPage> {
-  Uint8List? bytes;
-  String? fileName;
+class _SignUpPageState extends State<SignUpPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final nameController = TextEditingController();
 
-  final title = TextEditingController();
-  final description = TextEditingController();
+  bool loading = false;
+  bool obscure = true;
 
-  bool uploading = false;
-  bool isPublic = true;
+  Future<void> signup() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final name = nameController.text.trim();
 
-  Future<void> pickVideo() async {
-    final result =
-        await FilePicker.platform.pickFiles(
-      type: FileType.video,
-      withData: true,
-    );
-
-    if (result == null ||
-        result.files.single.bytes == null) {
-      return;
-    }
-
-    setState(() {
-      bytes = result.files.single.bytes;
-      fileName = result.files.single.name;
-    });
-  }
-
-  Future<void> upload() async {
-    final user = supabase.auth.currentUser;
-
-    if (user == null) {
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty) {
       showMessage(
         context,
-        text(
-          widget.isArabic,
-          'يجب تسجيل الدخول أولاً',
-          'Please sign in first',
-        ),
+        'أكمل جميع البيانات',
       );
       return;
     }
 
-    if (bytes == null || fileName == null) {
+    if (password.length < 6) {
       showMessage(
         context,
-        text(
-          widget.isArabic,
-          'اختر فيديو أولاً',
-          'Choose a video first',
-        ),
+        'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
       );
       return;
     }
 
-    if (uploading) return;
-
     setState(() {
-      uploading = true;
+      loading = true;
     });
 
     try {
-      final extension =
-          fileName!.split('.').last.toLowerCase();
+      final response = await supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': name,
+          'display_name': name,
+        },
+      );
 
-      final filePath =
-          '${user.id}/${DateTime.now().millisecondsSinceEpoch}.$extension';
+      final user = response.user;
 
-      await supabase.storage
-          .from('videos')
-          .uploadBinary(
-            filePath,
-            bytes!,
-            fileOptions: FileOptions(
-              contentType:
-                  extension == 'mov'
-                      ? 'video/quicktime'
-                      : 'video/mp4',
-              upsert: false,
-            ),
-          );
+      if (user == null) {
+        throw Exception(
+          'لم يتم إنشاء المستخدم',
+        );
+      }
 
-      final publicUrl = supabase.storage
-          .from('videos')
-          .getPublicUrl(filePath);
-
-      await supabase.from('videos').insert({
-        'user_id': user.id,
-        'title': title.text.trim(),
-        'description':
-            description.text.trim(),
-        'storage_path': filePath,
-        'video_url': publicUrl,
-        'is_public': isPublic,
-      });
+      try {
+        await supabase.from('profiles').upsert({
+          'id': user.id,
+          'full_name': name,
+          'display_name': name,
+        });
+      } catch (_) {
+        // إذا كان trigger ينشئ profile تلقائياً
+        // لا نوقف إنشاء الحساب.
+      }
 
       if (!mounted) return;
 
+      if (response.session == null) {
+        showMessage(
+          context,
+          'تم إنشاء الحساب. تحقق من بريدك الإلكتروني إذا كان تأكيد البريد مفعلاً.',
+        );
+
+        Navigator.of(context).pop();
+      } else {
+        Navigator.of(context).popUntil(
+          (route) => route.isFirst,
+        );
+      }
+    } on AuthException catch (e) {
       showMessage(
         context,
-        text(
-          widget.isArabic,
-          'تم رفع الفيديو بنجاح',
-          'Video uploaded successfully',
-        ),
+        e.message,
       );
-
-      Navigator.pop(context);
     } catch (e) {
-      if (mounted) {
-        showMessage(context, e.toString());
-      }
+      showMessage(
+        context,
+        'حدث خطأ أثناء إنشاء الحساب: $e',
+      );
     } finally {
       if (mounted) {
         setState(() {
-          uploading = false;
+          loading = false;
         });
       }
     }
@@ -2197,8 +999,9 @@ class _UploadVideoPageState
 
   @override
   void dispose() {
-    title.dispose();
-    description.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    nameController.dispose();
     super.dispose();
   }
 
@@ -2206,124 +1009,25 @@ class _UploadVideoPageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          text(
-            widget.isArabic,
-            'رفع فيديو',
-            'Upload Video',
-          ),
-        ),
+        title: const Text('إنشاء حساب'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: pickVideo,
-              child: Container(
-                width: double.infinity,
-                height: 220,
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(18),
-                  color: const Color(0xFF151722),
-                ),
-                child: bytes == null
-                    ? Column(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.video_library,
-                            size: 60,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            text(
-                              widget.isArabic,
-                              'اضغط لاختيار فيديو',
-                              'Tap to choose a video',
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        mainAxisAlignment:
-                            MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.check_circle,
-                            size: 60,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            fileName ?? '',
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: title,
-              decoration: InputDecoration(
-                labelText: text(
-                  widget.isArabic,
-                  'عنوان الفيديو',
-                  'Video title',
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
+              const Text(
+                'أنشئ حساب Reality Duel',
+                style: TextStyle(
+                  fontSize: 25,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: description,
-              maxLines: 4,
-              decoration: InputDecoration(
-                labelText: text(
-                  widget.isArabic,
-                  'الوصف',
-                  'Description',
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            SwitchListTile(
-              value: isPublic,
-              onChanged: (value) {
-                setState(() {
-                  isPublic = value;
-                });
-              },
-              title: Text(
-                text(
-                  widget.isArabic,
-                  'فيديو عام',
-                  'Public video',
-                ),
-              ),
-            ),
-            const SizedBox(height: 15),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                onPressed:
-                    uploading ? null : upload,
-                child: uploading
-                    ? const CircularProgressIndicator()
-                    : Text(
-                        text(
-                          widget.isArabic,
-                          'رفع الفيديو',
-                          'Upload Video',
-                        ),
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+              const SizedBox(height: 30),
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'الاسم',
+                  prefixIcon: Icon(Icons.person),
+                 
