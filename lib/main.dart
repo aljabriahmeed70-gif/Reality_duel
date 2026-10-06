@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:video_player/video_player.dart';
@@ -24,21 +22,16 @@ Future<void> main() async {
     publishableKey: supabasePublishableKey,
   );
 
-  runApp(const RealityDuelApp());
+  runApp(const ProveApp());
 }
 
-class RealityDuelApp extends StatefulWidget {
-  const RealityDuelApp({super.key});
+class ProveApp extends StatelessWidget {
+  const ProveApp({super.key});
 
-  @override
-  State<RealityDuelApp> createState() => _RealityDuelAppState();
-}
-
-class _RealityDuelAppState extends State<RealityDuelApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Reality Duel',
+      title: 'PROVE',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -51,6 +44,10 @@ class _RealityDuelAppState extends State<RealityDuelApp> {
   }
 }
 
+/* ============================================================
+   APP ROOT
+   ============================================================ */
+
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
 
@@ -60,7 +57,6 @@ class AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<AppRoot> {
   StreamSubscription<AuthState>? authSubscription;
-
   Session? session;
 
   @override
@@ -87,224 +83,33 @@ class _AppRootState extends State<AppRoot> {
 
   @override
   Widget build(BuildContext context) {
-    if (session == null) {
-      return const GuestHome();
-    }
-
-    return const MainShell();
-  }
-}
-
-/* ============================================================
-   GUEST HOME
-   ============================================================ */
-
-class GuestHome extends StatefulWidget {
-  const GuestHome({super.key});
-
-  @override
-  State<GuestHome> createState() => _GuestHomeState();
-}
-
-class _GuestHomeState extends State<GuestHome> {
-  int index = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const VideoFeedPage(),
-      const DiscoverPage(),
-      const OpportunitiesPage(),
-      const LoginPage(),
-    ];
-
-    return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: pages,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) {
-          setState(() {
-            index = value;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.play_circle_outline),
-            selectedIcon: Icon(Icons.play_circle),
-            label: 'Feed',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Discover',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: 'Jobs',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Login',
-          ),
-        ],
-      ),
+    return FeedPage(
+      loggedIn: session != null,
     );
   }
 }
 
 /* ============================================================
-   MAIN SHELL
+   FEED
    ============================================================ */
 
-class MainShell extends StatefulWidget {
-  const MainShell({super.key});
+class FeedPage extends StatefulWidget {
+  final bool loggedIn;
 
-  @override
-  State<MainShell> createState() => _MainShellState();
-}
-
-class _MainShellState extends State<MainShell> {
-  int index = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const VideoFeedPage(),
-      const DiscoverPage(),
-      const OpportunitiesPage(),
-      const ProfilePage(),
-    ];
-
-    return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: pages,
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const UploadVideoPage(),
-            ),
-          );
-        },
-        child: const Icon(Icons.add),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index,
-        onDestinationSelected: (value) {
-          setState(() {
-            index = value;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.play_circle_outline),
-            selectedIcon: Icon(Icons.play_circle),
-            label: 'Feed',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: 'Discover',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.work_outline),
-            selectedIcon: Icon(Icons.work),
-            label: 'Jobs',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   VIDEO MODEL
-   ============================================================ */
-
-class VideoItem {
-  final String id;
-  final String url;
-  final String caption;
-  final int views;
-  final int likes;
-  final int comments;
-  final String? userId;
-
-  VideoItem({
-    required this.id,
-    required this.url,
-    required this.caption,
-    required this.views,
-    required this.likes,
-    required this.comments,
-    this.userId,
+  const FeedPage({
+    super.key,
+    required this.loggedIn,
   });
 
-  factory VideoItem.fromMap(Map<String, dynamic> map) {
-    String url = '';
-
-    final directUrl = map['video_url']?.toString();
-
-    if (directUrl != null && directUrl.isNotEmpty) {
-      url = directUrl;
-    } else {
-      final path = map['storage_path']?.toString();
-
-      if (path != null && path.isNotEmpty) {
-        url = supabase.storage
-            .from(videoBucket)
-            .getPublicUrl(path);
-      }
-    }
-
-    return VideoItem(
-      id: map['id'].toString(),
-      url: url,
-      caption: map['caption']?.toString() ?? '',
-      views: _toInt(map['views_count']),
-      likes: _toInt(map['likes_count']),
-      comments: _toInt(map['comments_count']),
-      userId: map['user_id']?.toString(),
-    );
-  }
-}
-
-int _toInt(dynamic value) {
-  if (value is int) return value;
-
-  return int.tryParse(
-        value?.toString() ?? '0',
-      ) ??
-      0;
-}
-
-/* ============================================================
-   VIDEO FEED
-   ============================================================ */
-
-class VideoFeedPage extends StatefulWidget {
-  const VideoFeedPage({super.key});
-
   @override
-  State<VideoFeedPage> createState() => _VideoFeedPageState();
+  State<FeedPage> createState() => _FeedPageState();
 }
 
-class _VideoFeedPageState extends State<VideoFeedPage> {
-  final PageController controller = PageController();
+class _FeedPageState extends State<FeedPage> {
+  final PageController pageController = PageController();
 
   List<VideoItem> videos = [];
+
   bool loading = true;
   String? error;
 
@@ -332,7 +137,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
             ascending: false,
           );
 
-      final list = (response as List)
+      final result = (response as List)
           .map(
             (item) => VideoItem.fromMap(
               Map<String, dynamic>.from(item),
@@ -344,7 +149,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
       if (!mounted) return;
 
       setState(() {
-        videos = list;
+        videos = result;
         loading = false;
       });
     } catch (e) {
@@ -361,6 +166,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
   Widget build(BuildContext context) {
     if (loading) {
       return const Scaffold(
+        backgroundColor: Colors.black,
         body: Center(
           child: CircularProgressIndicator(),
         ),
@@ -369,9 +175,7 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
 
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Reality Duel'),
-        ),
+        backgroundColor: Colors.black,
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -379,20 +183,23 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
-                  Icons.error_outline,
-                  size: 60,
+                  Icons.cloud_off,
+                  size: 65,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 const Text(
                   'تعذر تحميل الفيديوهات',
-                  style: TextStyle(fontSize: 20),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   error!,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 25),
                 FilledButton(
                   onPressed: loadVideos,
                   child: const Text('إعادة المحاولة'),
@@ -406,18 +213,18 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
 
     if (videos.isEmpty) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Reality Duel'),
-        ),
+        backgroundColor: Colors.black,
         body: RefreshIndicator(
           onRefresh: loadVideos,
           child: ListView(
             children: const [
-              SizedBox(height: 250),
+              SizedBox(height: 300),
               Center(
                 child: Text(
                   'لا توجد فيديوهات حتى الآن',
-                  style: TextStyle(fontSize: 20),
+                  style: TextStyle(
+                    fontSize: 20,
+                  ),
                 ),
               ),
             ],
@@ -427,44 +234,114 @@ class _VideoFeedPageState extends State<VideoFeedPage> {
     }
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: loadVideos,
-        child: PageView.builder(
-          controller: controller,
-          scrollDirection: Axis.vertical,
-          itemCount: videos.length,
-          itemBuilder: (context, index) {
-            return VideoCard(
-              video: videos[index],
-            );
-          },
-        ),
+      backgroundColor: Colors.black,
+      body: PageView.builder(
+        controller: pageController,
+        scrollDirection: Axis.vertical,
+        itemCount: videos.length,
+        itemBuilder: (context, index) {
+          return ProveVideoCard(
+            video: videos[index],
+          );
+        },
       ),
     );
   }
 }
 
 /* ============================================================
+   VIDEO MODEL
+   ============================================================ */
+
+class VideoItem {
+  final String id;
+  final String url;
+  final String caption;
+  final int views;
+  final int likes;
+  final int comments;
+  final String? userId;
+
+  const VideoItem({
+    required this.id,
+    required this.url,
+    required this.caption,
+    required this.views,
+    required this.likes,
+    required this.comments,
+    this.userId,
+  });
+
+  factory VideoItem.fromMap(
+    Map<String, dynamic> map,
+  ) {
+    String url = '';
+
+    final directUrl =
+        map['video_url']?.toString();
+
+    if (directUrl != null &&
+        directUrl.isNotEmpty) {
+      url = directUrl;
+    } else {
+      final path =
+          map['storage_path']?.toString();
+
+      if (path != null && path.isNotEmpty) {
+        url = supabase.storage
+            .from(videoBucket)
+            .getPublicUrl(path);
+      }
+    }
+
+    return VideoItem(
+      id: map['id'].toString(),
+      url: url,
+      caption:
+          map['caption']?.toString() ?? '',
+      views:
+          _toInt(map['views_count']),
+      likes:
+          _toInt(map['likes_count']),
+      comments:
+          _toInt(map['comments_count']),
+      userId:
+          map['user_id']?.toString(),
+    );
+  }
+}
+
+int _toInt(dynamic value) {
+  if (value is int) return value;
+
+  return int.tryParse(
+        value?.toString() ?? '0',
+      ) ??
+      0;
+}
+
+/* ============================================================
    VIDEO CARD
    ============================================================ */
 
-class VideoCard extends StatefulWidget {
+class ProveVideoCard extends StatefulWidget {
   final VideoItem video;
 
-  const VideoCard({
+  const ProveVideoCard({
     super.key,
     required this.video,
   });
 
   @override
-  State<VideoCard> createState() => _VideoCardState();
+  State<ProveVideoCard> createState() =>
+      _ProveVideoCardState();
 }
 
-class _VideoCardState extends State<VideoCard> {
-  late VideoPlayerController videoController;
+class _ProveVideoCardState
+    extends State<ProveVideoCard> {
+  late VideoPlayerController controller;
 
   bool initialized = false;
-  bool playing = false;
   bool liked = false;
   bool loadingLike = false;
 
@@ -475,23 +352,21 @@ class _VideoCardState extends State<VideoCard> {
   }
 
   Future<void> initializeVideo() async {
-    videoController = VideoPlayerController.networkUrl(
+    controller =
+        VideoPlayerController.networkUrl(
       Uri.parse(widget.video.url),
     );
 
     try {
-      await videoController.initialize();
-
-      await videoController.setLooping(true);
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
 
       if (!mounted) return;
 
       setState(() {
         initialized = true;
-        playing = true;
       });
-
-      await videoController.play();
     } catch (_) {
       if (!mounted) return;
 
@@ -503,19 +378,16 @@ class _VideoCardState extends State<VideoCard> {
 
   @override
   void dispose() {
-    videoController.dispose();
+    controller.dispose();
     super.dispose();
   }
 
   Future<void> toggleLike() async {
-    final user = supabase.auth.currentUser;
+    final user =
+        supabase.auth.currentUser;
 
     if (user == null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const LoginPage(),
-        ),
-      );
+      showLoginMessage();
       return;
     }
 
@@ -530,26 +402,43 @@ class _VideoCardState extends State<VideoCard> {
         await supabase
             .from('likes')
             .delete()
-            .eq('video_id', widget.video.id)
-            .eq('user_id', user.id);
+            .eq(
+              'video_id',
+              widget.video.id,
+            )
+            .eq(
+              'user_id',
+              user.id,
+            );
+
+        if (!mounted) return;
 
         setState(() {
           liked = false;
         });
       } else {
-        await supabase.from('likes').insert({
+        await supabase
+            .from('likes')
+            .insert({
           'video_id': widget.video.id,
           'user_id': user.id,
         });
+
+        if (!mounted) return;
 
         setState(() {
           liked = true;
         });
       }
     } catch (e) {
-      showMessage(
-        context,
-        'تعذر تنفيذ الإعجاب: $e',
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content:
+              Text('تعذر تنفيذ الإعجاب: $e'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -560,22 +449,27 @@ class _VideoCardState extends State<VideoCard> {
     }
   }
 
+  void showLoginMessage() {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(
+      const SnackBar(
+        content: Text(
+          'سجّل الدخول أولًا لاستخدام هذه الميزة',
+        ),
+      ),
+    );
+  }
+
   void togglePlay() {
     if (!initialized) return;
 
-    if (videoController.value.isPlaying) {
-      videoController.pause();
-
-      setState(() {
-        playing = false;
-      });
+    if (controller.value.isPlaying) {
+      controller.pause();
     } else {
-      videoController.play();
-
-      setState(() {
-        playing = true;
-      });
+      controller.play();
     }
+
+    setState(() {});
   }
 
   @override
@@ -585,6 +479,9 @@ class _VideoCardState extends State<VideoCard> {
       child: Stack(
         fit: StackFit.expand,
         children: [
+
+          /* VIDEO */
+
           Container(
             color: Colors.black,
           ),
@@ -592,86 +489,173 @@ class _VideoCardState extends State<VideoCard> {
           if (initialized)
             Center(
               child: AspectRatio(
-                aspectRatio: videoController.value.aspectRatio,
-                child: VideoPlayer(videoController),
+                aspectRatio:
+                    controller.value.aspectRatio,
+                child: VideoPlayer(controller),
               ),
             ),
 
           if (!initialized)
             const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             ),
 
+          /* PROVE LOGO */
+
+          const Positioned(
+            top: 55,
+            left: 20,
+            child: Text(
+              'PROVE',
+              style: TextStyle(
+                fontSize: 25,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ),
+
+          /* ACTIONS */
+
           Positioned(
-            right: 12,
-            bottom: 100,
+            right: 14,
+            bottom: 120,
             child: Column(
               children: [
-                _ActionButton(
-                  icon: liked
-                      ? Icons.favorite
-                      : Icons.favorite_border,
-                  label: '${widget.video.likes}',
-                  color: liked ? Colors.red : Colors.white,
+
+                GestureDetector(
                   onTap: toggleLike,
-                ),
-                const SizedBox(height: 18),
-                _ActionButton(
-                  icon: Icons.comment,
-                  label: '${widget.video.comments}',
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CommentsPage(
-                          videoId: widget.video.id,
+                  child: Column(
+                    children: [
+                      Icon(
+                        liked
+                            ? Icons.favorite
+                            : Icons.favorite_border,
+                        size: 38,
+                        color: liked
+                            ? Colors.red
+                            : Colors.white,
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        '${widget.video.likes}',
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
-                    );
-                  },
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 18),
-                _ActionButton(
-                  icon: Icons.visibility,
-                  label: '${widget.video.views}',
-                  onTap: () {},
+
+                const SizedBox(height: 25),
+
+                GestureDetector(
+                  onTap: showLoginMessage,
+                  child: const Column(
+                    children: [
+                      Icon(
+                        Icons.comment_outlined,
+                        size: 36,
+                      ),
+                      SizedBox(height: 5),
+                      Text('تعليق'),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 25),
+
+                Column(
+                  children: [
+                    const Icon(
+                      Icons.visibility_outlined,
+                      size: 34,
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${widget.video.views}',
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 25),
+
+                GestureDetector(
+                  onTap: showLoginMessage,
+                  child: const Icon(
+                    Icons.person_add_alt_1,
+                    size: 34,
+                  ),
                 ),
               ],
             ),
           ),
 
+          /* CAPTION */
+
           Positioned(
             left: 18,
-            right: 80,
-            bottom: 30,
+            right: 85,
+            bottom: 35,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Reality Duel',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+
+                if (widget
+                    .video
+                    .userId !=
+                    null)
+                  Text(
+                    '@${widget.video.userId!.substring(0, 8)}',
+                    style: const TextStyle(
+                      fontWeight:
+                          FontWeight.bold,
+                      fontSize: 17,
+                    ),
                   ),
-                ),
+
                 const SizedBox(height: 8),
-                if (widget.video.caption.isNotEmpty)
+
+                if (widget
+                    .video
+                    .caption
+                    .isNotEmpty)
                   Text(
                     widget.video.caption,
                     maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
+                    overflow:
+                        TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
                     ),
                   ),
+
+                const SizedBox(height: 8),
+
+                const Text(
+                  'The World Is Your Arena',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
               ],
             ),
           ),
 
-          if (!playing && initialized)
+          /* PAUSE ICON */
+
+          if (initialized &&
+              !controller.value.isPlaying)
             const Center(
               child: Icon(
                 Icons.play_arrow,
-                size: 80,
+                size: 85,
                 color: Colors.white70,
               ),
             ),
@@ -680,354 +664,3 @@ class _VideoCardState extends State<VideoCard> {
     );
   }
 }
-
-/* ============================================================
-   ACTION BUTTON
-   ============================================================ */
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final Color color;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-    this.color = Colors.white,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 34,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   LOGIN
-   ============================================================ */
-
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
-
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-
-  bool loading = false;
-  bool obscure = true;
-
-  Future<void> login() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-
-    if (email.isEmpty || password.isEmpty) {
-      showMessage(
-        context,
-        'أدخل البريد الإلكتروني وكلمة المرور',
-      );
-      return;
-    }
-
-    setState(() {
-      loading = true;
-    });
-
-    try {
-      await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      if (!mounted) return;
-
-      Navigator.of(context).popUntil(
-        (route) => route.isFirst,
-      );
-    } on AuthException catch (e) {
-      showMessage(
-        context,
-        e.message,
-      );
-    } catch (e) {
-      showMessage(
-        context,
-        'حدث خطأ أثناء تسجيل الدخول: $e',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('تسجيل الدخول'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 35),
-              const Icon(
-                Icons.sports_mma,
-                size: 80,
-              ),
-              const SizedBox(height: 15),
-              const Text(
-                'REALITY DUEL',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'البريد الإلكتروني',
-                  prefixIcon: Icon(Icons.email),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: passwordController,
-                obscureText: obscure,
-                decoration: InputDecoration(
-                  labelText: 'كلمة المرور',
-                  prefixIcon: const Icon(Icons.lock),
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        obscure = !obscure;
-                      });
-                    },
-                    icon: Icon(
-                      obscure
-                          ? Icons.visibility
-                          : Icons.visibility_off,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: loading ? null : login,
-                  child: loading
-                      ? const CircularProgressIndicator()
-                      : const Text(
-                          'دخول',
-                          style: TextStyle(fontSize: 18),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 15),
-              TextButton(
-                onPressed: loading
-                    ? null
-                    : () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                const SignUpPage(),
-                          ),
-                        );
-                      },
-                child: const Text(
-                  'إنشاء حساب جديد',
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/* ============================================================
-   SIGN UP
-   ============================================================ */
-
-class SignUpPage extends StatefulWidget {
-  const SignUpPage({super.key});
-
-  @override
-  State<SignUpPage> createState() => _SignUpPageState();
-}
-
-class _SignUpPageState extends State<SignUpPage> {
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-  final nameController = TextEditingController();
-
-  bool loading = false;
-  bool obscure = true;
-
-  Future<void> signup() async {
-    final email = emailController.text.trim();
-    final password = passwordController.text;
-    final name = nameController.text.trim();
-
-    if (name.isEmpty ||
-        email.isEmpty ||
-        password.isEmpty) {
-      showMessage(
-        context,
-        'أكمل جميع البيانات',
-      );
-      return;
-    }
-
-    if (password.length < 6) {
-      showMessage(
-        context,
-        'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
-      );
-      return;
-    }
-
-    setState(() {
-      loading = true;
-    });
-
-    try {
-      final response = await supabase.auth.signUp(
-        email: email,
-        password: password,
-        data: {
-          'full_name': name,
-          'display_name': name,
-        },
-      );
-
-      final user = response.user;
-
-      if (user == null) {
-        throw Exception(
-          'لم يتم إنشاء المستخدم',
-        );
-      }
-
-      try {
-        await supabase.from('profiles').upsert({
-          'id': user.id,
-          'full_name': name,
-          'display_name': name,
-        });
-      } catch (_) {
-        // إذا كان trigger ينشئ profile تلقائياً
-        // لا نوقف إنشاء الحساب.
-      }
-
-      if (!mounted) return;
-
-      if (response.session == null) {
-        showMessage(
-          context,
-          'تم إنشاء الحساب. تحقق من بريدك الإلكتروني إذا كان تأكيد البريد مفعلاً.',
-        );
-
-        Navigator.of(context).pop();
-      } else {
-        Navigator.of(context).popUntil(
-          (route) => route.isFirst,
-        );
-      }
-    } on AuthException catch (e) {
-      showMessage(
-        context,
-        e.message,
-      );
-    } catch (e) {
-      showMessage(
-        context,
-        'حدث خطأ أثناء إنشاء الحساب: $e',
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          loading = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    emailController.dispose();
-    passwordController.dispose();
-    nameController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('إنشاء حساب'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              const Text(
-                'أنشئ حساب Reality Duel',
-                style: TextStyle(
-                  fontSize: 25,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 30),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'الاسم',
-                  prefixIcon: Icon(Icons.person),
-                 
